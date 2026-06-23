@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#14532D" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Farm Manager" />
+  <title>Farm Manager</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
+    body { background: #F0F7F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
+    input, select, textarea, button { font-family: inherit; }
+    ::-webkit-scrollbar { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+    .spin { animation: spin 0.8s linear infinite; display:inline-block; }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    .hourly-scroll { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; scroll-snap-type:x mandatory; }
+    .hourly-scroll::-webkit-scrollbar { display:none; }
+    .hourly-card { scroll-snap-align:start; flex-shrink:0; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    const SUPABASE_URL = "https://qltqtilgqglkwiguuxpv.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsdHF0aWxncWdsa3dpZ3V1eHB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxODk5NjEsImV4cCI6MjA5Nzc2NTk2MX0.c9OGIiG0ZOPQJXfFQltTmGBSfeUMaayio11uZ0Pk6gw";
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const normBatch = b => ({ ...b, createdAt: b.created_at });
+    const denormBatch = ({ createdAt, ...b }) => b;
+    const normEvent = e => ({ ...e, batchId: e.batch_id, createdAt: e.created_at });
+    const denormEvent = ({ batchId, createdAt, ...e }) => ({ ...e, batch_id: batchId });
+
+    const CROPS = ["Spinach","Cabbage","Kale","Red Onions","Tomatoes"];
+    const CROP_META = {
+      Spinach:      { icon:"🥬", color:"#16A34A", bg:"#DCFCE7", days:45 },
+      Cabbage:      { icon:"🥬", color:"#15803D", bg:"#D1FAE5", days:80 },
+      Kale:         { icon:"🌿", color:"#166534", bg:"#BBF7D0", days:60 },
+      "Red Onions": { icon:"🧅", color:"#BE185D", bg:"#FCE7F3", days:120 },
+      Tomatoes:     { icon:"🍅", color:"#DC2626", bg:"#FEE2E2", days:75 },
+    };
+    const TEAM = ["Lincoln","Thandeka","Vuyi","Velile"];
+    const IRR_OPTIONS = ["Daily","Every 2 days","Every 3 days","Twice weekly","Weekly","As needed"];
+
+    const todayStr = () => new Date().toISOString().split("T")[0];
+    const daysBetween = (a,b) => Math.round((new Date(b)-new Date(a))/86400000);
+    const fmt = d => d ? new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}) : "—";
+    const uid = () => Math.random().toString(36).slice(2,11);
+
+    const WMO = {0:"Clear sky",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",45:"Foggy",51:"Light drizzle",53:"Drizzle",55:"Heavy drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",80:"Showers",81:"Showers",82:"Heavy showers",95:"Thunderstorm",96:"Thunderstorm",99:"Thunderstorm"};
+    const WMO_ICON = {0:"☀️",1:"🌤",2:"⛅",3:"☁️",45:"🌫",51:"🌦",53:"🌦",55:"🌧",61:"🌧",63:"🌧",65:"🌧",80:"🌦",81:"🌧",82:"⛈",95:"⛈",96:"⛈",99:"⛈"};
+
+    // ── Farming advice engine ──────────────────────────────────────────────
+    function getFarmingTips(current, daily) {
+      const tips = [];
+      const { temperature_2m: temp, relative_humidity_2m: rh, precipitation: rain, weathercode: code, windspeed_10m: wind } = current;
+      const hour = new Date().getHours();
+
+      if (rain > 5) tips.push({ icon:"💧", color:"#2563EB", text:"Rain today — skip irrigation, save water" });
+      else if (daily?.precipitation_sum?.[0] > 3) tips.push({ icon:"🌦", color:"#7C3AED", text:"Rain expected today — hold off watering" });
+      else if (temp > 34 && hour < 9) tips.push({ icon:"🌅", color:"#EA580C", text:"Hot day ahead — water now before heat builds" });
+      else if (temp > 34) tips.push({ icon:"🌡️", color:"#DC2626", text:"Very hot — mulch exposed soil, shade seedlings" });
+      else if (temp < 8) tips.push({ icon:"🥶", color:"#0284C7", text:"Cold night risk — cover frost-sensitive crops" });
+
+      if (rh > 85 && temp > 22) tips.push({ icon:"🍄", color:"#D97706", text:"High humidity + heat = fungal risk. Check leaves" });
+      if (wind > 30) tips.push({ icon:"💨", color:"#6B7280", text:"Strong winds — support tall tomatoes and brassicas" });
+
+      if (code <= 1 && temp >= 18 && temp <= 28 && hour >= 6 && hour <= 11)
+        tips.push({ icon:"✅", color:"#16A34A", text:"Perfect morning conditions for field work" });
+      if (code <= 1 && temp >= 18 && temp <= 28 && hour >= 14 && hour <= 17)
+        tips.push({ icon:"🌿", color:"#16A34A", text:"Good afternoon for transplanting or harvesting" });
+
+      if (temp >= 20 && temp <= 28 && rh >= 50 && rh <= 70 && rain === 0)
+        tips.push({ icon:"🍅", color:"#DC2626", text:"Ideal tomato day — check for fruit set" });
+      if (temp >= 15 && temp <= 22)
+        tips.push({ icon:"🥬", color:"#15803D", text:"Cool temps — great for spinach and kale growth" });
+
+      if (hour >= 5 && hour < 8) tips.push({ icon:"🌄", color:"#B45309", text:"Early morning — best time to scout for pests" });
+      if (hour >= 17 && hour < 20) tips.push({ icon:"🌇", color:"#7C3AED", text:"Evening — good time for foliar spray if needed" });
+
+      return tips.slice(0, 4);
+    }
+
+    // ── Weather Widget ─────────────────────────────────────────────────────
+    function WeatherWidget() {
+      const [wx, setWx] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [showHourly, setShowHourly] = useState(true);
+
+      useEffect(() => {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=-20.02&longitude=28.91`
+          + `&current=temperature_2m,relative_humidity_2m,precipitation,weathercode,windspeed_10m,apparent_temperature`
+          + `&hourly=temperature_2m,precipitation_probability,weathercode,windspeed_10m`
+          + `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset`
+          + `&timezone=Africa%2FHarare&forecast_days=6&forecast_hours=24`;
+        fetch(url).then(r=>r.json()).then(d=>{setWx(d);setLoading(false);}).catch(()=>setLoading(false));
+      }, []);
+
+      if (loading) return (
+        <div style={{ background:"linear-gradient(135deg,#14532D,#166534)", borderRadius:20, padding:20, marginBottom:16, color:"#fff", display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ animation:"pulse 1.5s ease infinite", fontSize:32 }}>🌤</div>
+          <div style={{ fontSize:13, opacity:0.8 }}>Loading weather for Ntabazinduna…</div>
+        </div>
+      );
+      if (!wx?.current) return null;
+
+      const c = wx.current, d = wx.daily, h = wx.hourly;
+      const code = c.weathercode;
+      const tips = getFarmingTips(c, d);
+
+      // Get next 12 hours starting from now
+      const nowHour = new Date().getHours();
+      const hourlyStart = h.time.findIndex(t => new Date(t).getHours() >= nowHour && new Date(t).toDateString() === new Date().toDateString());
+      const next12 = h.time.slice(hourlyStart, hourlyStart+12).map((t,i) => ({
+        time: new Date(t).getHours(),
+        temp: Math.round(h.temperature_2m[hourlyStart+i]),
+        pop: h.precipitation_probability[hourlyStart+i],
+        icon: WMO_ICON[h.weathercode[hourlyStart+i]] || "🌡",
+        wind: Math.round(h.windspeed_10m[hourlyStart+i]),
+      }));
+
+      const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+      const fmtHour = h => h === 0 ? "12am" : h < 12 ? `${h}am` : h === 12 ? "12pm" : `${h-12}pm`;
+
+      return (
+        <div style={{ borderRadius:20, overflow:"hidden", marginBottom:16, boxShadow:"0 8px 32px rgba(20,83,45,0.18)" }}>
+          {/* Main current weather */}
+          <div style={{ background:"linear-gradient(145deg,#14532D 0%,#166534 50%,#15803D 100%)", padding:"20px 18px 16px", color:"#fff" }}>
+            <div style={{ fontSize:10, letterSpacing:3, textTransform:"uppercase", opacity:0.65, marginBottom:12 }}>📍 Ntabazinduna · Zimbabwe</div>
+
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:14 }}>
+              <div>
+                <div style={{ fontSize:54, fontWeight:800, lineHeight:1, letterSpacing:-2 }}>{Math.round(c.temperature_2m)}°</div>
+                <div style={{ fontSize:13, opacity:0.75, marginTop:2 }}>Feels like {Math.round(c.apparent_temperature)}°C</div>
+                <div style={{ fontSize:15, fontWeight:600, marginTop:6 }}>{WMO[code]||"—"}</div>
+              </div>
+              <div style={{ textAlign:"center" }}>
+                <div style={{ fontSize:64, lineHeight:1 }}>{WMO_ICON[code]||"🌡"}</div>
+                <div style={{ fontSize:11, opacity:0.7, marginTop:6 }}>
+                  ↑{Math.round(d.temperature_2m_max[0])}° ↓{Math.round(d.temperature_2m_min[0])}°
+                </div>
+              </div>
+            </div>
+
+            {/* Stats row */}
+            <div style={{ display:"flex", gap:0, background:"rgba(255,255,255,0.1)", borderRadius:12, overflow:"hidden" }}>
+              {[
+                { icon:"💧", val:`${c.precipitation}mm`, label:"Rain" },
+                { icon:"💦", val:`${c.relative_humidity_2m}%`, label:"Humidity" },
+                { icon:"🌬", val:`${Math.round(c.windspeed_10m)}km/h`, label:"Wind" },
+              ].map((s,i) => (
+                <div key={i} style={{ flex:1, padding:"10px 6px", textAlign:"center", borderRight:i<2?"1px solid rgba(255,255,255,0.15)":"none" }}>
+                  <div style={{ fontSize:16 }}>{s.icon}</div>
+                  <div style={{ fontSize:13, fontWeight:700, marginTop:2 }}>{s.val}</div>
+                  <div style={{ fontSize:10, opacity:0.65, marginTop:1 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Hourly forecast */}
+          <div style={{ background:"#1A5C35", padding:"12px 16px 8px" }}>
+            <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.6)", letterSpacing:1.5, textTransform:"uppercase", marginBottom:10 }}>Hourly Forecast</div>
+            <div className="hourly-scroll">
+              {next12.map((h,i) => (
+                <div key={i} className="hourly-card" style={{
+                  background: i===0 ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.1)",
+                  borderRadius:12, padding:"10px 10px", textAlign:"center", minWidth:58,
+                  border: i===0 ? "1px solid rgba(255,255,255,0.3)" : "1px solid transparent",
+                }}>
+                  <div style={{ fontSize:10, color:"rgba(255,255,255,0.7)", marginBottom:5, fontWeight:i===0?700:400 }}>{i===0?"Now":fmtHour(h.time)}</div>
+                  <div style={{ fontSize:20, marginBottom:5 }}>{h.icon}</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#fff" }}>{h.temp}°</div>
+                  {h.pop > 10 && <div style={{ fontSize:10, color:"#93C5FD", marginTop:3 }}>💧{h.pop}%</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 5-day forecast */}
+          <div style={{ background:"#145228", padding:"12px 16px 14px" }}>
+            <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.6)", letterSpacing:1.5, textTransform:"uppercase", marginBottom:10 }}>5-Day Forecast</div>
+            <div style={{ display:"flex", gap:6 }}>
+              {d.time.slice(0,5).map((t,i) => (
+                <div key={t} style={{ flex:1, background:"rgba(255,255,255,0.08)", borderRadius:12, padding:"10px 4px", textAlign:"center" }}>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.65)", marginBottom:5, fontWeight:600 }}>{i===0?"Today":DAYS[new Date(t).getDay()]}</div>
+                  <div style={{ fontSize:22, marginBottom:5 }}>{WMO_ICON[d.weathercode[i]]||"🌡"}</div>
+                  <div style={{ fontSize:13, fontWeight:800, color:"#fff" }}>{Math.round(d.temperature_2m_max[i])}°</div>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>{Math.round(d.temperature_2m_min[i])}°</div>
+                  {d.precipitation_sum[i]>0.5 && <div style={{ fontSize:10, color:"#93C5FD", marginTop:3 }}>{d.precipitation_sum[i].toFixed(1)}mm</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Farming tips */}
+          {tips.length > 0 && (
+            <div style={{ background:"#F0FDF4", padding:"14px 16px", borderTop:"1px solid #BBF7D0" }}>
+              <div style={{ fontSize:11, fontWeight:700, color:"#14532D", letterSpacing:1.5, textTransform:"uppercase", marginBottom:10 }}>🌾 Farm Tips for Today</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {tips.map((tip,i) => (
+                  <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, background:"#fff", borderRadius:12, padding:"10px 12px", boxShadow:"0 1px 4px rgba(0,0,0,0.06)", borderLeft:`3px solid ${tip.color}` }}>
+                    <span style={{ fontSize:18, flexShrink:0 }}>{tip.icon}</span>
+                    <span style={{ fontSize:13, color:"#1F2937", lineHeight:1.4, fontWeight:500 }}>{tip.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ── Toast ──────────────────────────────────────────────────────────────
+    function Toast({ msg, type="error" }) {
+      const bg = type==="error"?"#DC2626":type==="success"?"#16A34A":"#D97706";
+      return (
+        <div style={{ position:"fixed", top:16, left:"50%", transform:"translateX(-50%)", zIndex:999,
+          background:bg, color:"#fff", borderRadius:12, padding:"11px 22px", fontSize:13, fontWeight:600,
+          boxShadow:"0 6px 24px rgba(0,0,0,0.18)", maxWidth:340, textAlign:"center", animation:"fadeIn 0.2s ease" }}>
+          {msg}
+        </div>
+      );
+    }
+
+    // ── GrowthBar ──────────────────────────────────────────────────────────
+    function GrowthBar({ planted, harvest }) {
+      const t = todayStr();
+      const total = daysBetween(planted, harvest);
+      const elapsed = daysBetween(planted, t);
+      const pct = Math.min(100, Math.max(0, (elapsed/total)*100));
+      const overdue = elapsed > total;
+      const daysLeft = Math.max(0, total-elapsed);
+      return (
+        <div>
+          <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#6B7280", marginBottom:5 }}>
+            <span>Planted {fmt(planted)}</span>
+            <span style={{ color:overdue?"#DC2626":"#374151", fontWeight:overdue?700:500 }}>
+              {overdue ? "⚠ Past harvest date" : `${daysLeft} days to harvest`}
+            </span>
+          </div>
+          <div style={{ background:"#E5E7EB", borderRadius:99, height:8, overflow:"hidden" }}>
+            <div style={{ width:`${pct}%`, height:"100%", borderRadius:99,
+              background: overdue ? "#DC2626" : "linear-gradient(90deg,#22C55E 0%,#F59E0B 100%)",
+              transition:"width 0.5s ease", boxShadow:overdue?"none":"0 0 6px rgba(34,197,94,0.4)" }} />
+          </div>
+          <div style={{ fontSize:10, color:"#9CA3AF", marginTop:4 }}>Target: {fmt(harvest)}</div>
+        </div>
+      );
+    }
+
+    // ── StatCard ───────────────────────────────────────────────────────────
+    function StatCard({ label, value, sub, color="#14532D", bg="#F0FDF4", icon }) {
+      return (
+        <div style={{ background:bg, borderRadius:16, padding:"16px 14px", flex:1, boxShadow:"0 2px 8px rgba(0,0,0,0.06)", border:"1px solid rgba(0,0,0,0.04)" }}>
+          {icon && <div style={{ fontSize:24, marginBottom:6 }}>{icon}</div>}
+          <div style={{ fontSize:28, fontWeight:800, color, lineHeight:1, letterSpacing:-1 }}>{value}</div>
+          <div style={{ fontSize:12, fontWeight:700, color, marginTop:4, opacity:0.8 }}>{label}</div>
+          {sub && <div style={{ fontSize:11, color:"#6B7280", marginTop:2 }}>{sub}</div>}
+        </div>
+      );
+    }
+
+    // ── Modal ──────────────────────────────────────────────────────────────
+    const IS = { width:"100%", padding:"11px 14px", borderRadius:10, border:"1.5px solid #D1FAE5", background:"#fff", fontSize:14, color:"#1F2937", boxSizing:"border-box", fontFamily:"inherit", outline:"none" };
+    const BS = { padding:"13px 16px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#16A34A,#14532D)", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 12px rgba(20,83,45,0.3)" };
+
+    function Modal({ title, onClose, children }) {
+      return (
+        <div onClick={e=>e.target===e.currentTarget&&onClose()}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(2px)" }}>
+          <div style={{ background:"#F9FAFB", width:"100%", maxWidth:480, borderRadius:"24px 24px 0 0", maxHeight:"92vh", overflowY:"auto", padding:"22px 20px 44px", animation:"slideUp 0.28s cubic-bezier(0.34,1.56,0.64,1)" }}>
+            <div style={{ width:40, height:4, background:"#D1D5DB", borderRadius:99, margin:"0 auto 20px" }}/>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+              <h3 style={{ margin:0, fontSize:19, fontWeight:800, color:"#111827" }}>{title}</h3>
+              <button onClick={onClose} style={{ background:"#F3F4F6", border:"none", borderRadius:50, width:32, height:32, cursor:"pointer", fontSize:16, color:"#6B7280", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            </div>
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    function Field({ label, children, style }) {
+      return (
+        <div style={{ marginBottom:14, ...style }}>
+          <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#374151", marginBottom:5, textTransform:"uppercase", letterSpacing:0.5 }}>{label}</label>
+          {children}
+        </div>
+      );
+    }
+
+    // ── AddBatchModal ──────────────────────────────────────────────────────
+    function AddBatchModal({ onSave, onClose }) {
+      const [form, setForm] = useState({ crop:"Spinach", variety:"", bed:"", planted:todayStr(), harvest:"", area:"", irrigation:"Every 2 days", notes:"", logged_by:"" });
+      const [saving, setSaving] = useState(false);
+      const set = (k,v) => setForm(f=>({...f,[k]:v}));
+      useEffect(() => {
+        const days = CROP_META[form.crop]?.days;
+        if (days && form.planted) {
+          const h = new Date(form.planted); h.setDate(h.getDate()+days);
+          set("harvest", h.toISOString().split("T")[0]);
+        }
+      }, [form.crop, form.planted]);
+      const handleSave = async () => { if (!form.planted||!form.harvest) return; setSaving(true); await onSave(form); setSaving(false); };
+      return (
+        <Modal title="🌱 New Crop Batch" onClose={onClose}>
+          <Field label="Crop">
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+              {CROPS.map(c => {
+                const m = CROP_META[c];
+                return (
+                  <button key={c} onClick={()=>set("crop",c)} style={{ display:"flex", alignItems:"center", gap:5, padding:"8px 12px", borderRadius:10, border:`2px solid ${form.crop===c?m.color:"#E5E7EB"}`, background:form.crop===c?m.bg:"#fff", color:form.crop===c?m.color:"#6B7280", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                    <span>{m.icon}</span>{c}
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+          <Field label="Variety (optional)"><input value={form.variety} onChange={e=>set("variety",e.target.value)} placeholder="e.g. F1 Hybrid, Local seed" style={IS}/></Field>
+          <Field label="Bed / Plot"><input value={form.bed} onChange={e=>set("bed",e.target.value)} placeholder="e.g. Bed A3, North block" style={IS}/></Field>
+          <div style={{ display:"flex", gap:10 }}>
+            <Field label="Date Planted" style={{ flex:1 }}><input type="date" value={form.planted} onChange={e=>set("planted",e.target.value)} style={IS}/></Field>
+            <Field label="Harvest Date" style={{ flex:1 }}><input type="date" value={form.harvest} onChange={e=>set("harvest",e.target.value)} style={IS}/></Field>
+          </div>
+          <Field label="Area (m²)"><input type="number" value={form.area} onChange={e=>set("area",e.target.value)} placeholder="e.g. 50" style={IS}/></Field>
+          <Field label="Irrigation Schedule"><select value={form.irrigation} onChange={e=>set("irrigation",e.target.value)} style={IS}>{IRR_OPTIONS.map(o=><option key={o}>{o}</option>)}</select></Field>
+          <Field label="Added by">
+            <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
+              {TEAM.map(n=>(
+                <button key={n} onClick={()=>set("logged_by",n)} style={{ padding:"8px 16px", borderRadius:99, border:"none", cursor:"pointer", fontSize:13, fontWeight:600,
+                  background:form.logged_by===n?"#14532D":"#F3F4F6", color:form.logged_by===n?"#fff":"#6B7280", transition:"all 0.15s" }}>{n}</button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Notes"><textarea value={form.notes} onChange={e=>set("notes",e.target.value)} rows={2} placeholder="Any additional observations…" style={{...IS,resize:"vertical"}}/></Field>
+          <button onClick={handleSave} disabled={saving} style={{...BS,width:"100%",marginTop:8,opacity:saving?0.75:1}}>
+            {saving ? "⏳ Saving…" : "Save Batch"}
+          </button>
+        </Modal>
+      );
+    }
+
+    // ── AddEventModal ──────────────────────────────────────────────────────
+    function AddEventModal({ batches, defaultBatchId, onSave, onClose }) {
+      const [form, setForm] = useState({ batchId:defaultBatchId||(batches[0]?.id||""), type:"irrigation", date:todayStr(), duration:"", amount:"", product:"", quantity:"", unit:"kg", notes:"", logged_by:"" });
+      const [saving, setSaving] = useState(false);
+      const set = (k,v) => setForm(f=>({...f,[k]:v}));
+      const handleSave = async () => { if (!form.batchId) return; setSaving(true); await onSave(form); setSaving(false); };
+      const typeConfig = [
+        { t:"irrigation", l:"💧", label:"Water" },
+        { t:"fertilizer", l:"🌿", label:"Feed" },
+        { t:"harvest",    l:"⚖️", label:"Harvest" },
+        { t:"note",       l:"📝", label:"Note" },
+      ];
+      return (
+        <Modal title="📋 Log Activity" onClose={onClose}>
+          <Field label="Crop Batch">
+            <select value={form.batchId} onChange={e=>set("batchId",e.target.value)} style={IS}>
+              {batches.map(b=><option key={b.id} value={b.id}>{CROP_META[b.crop]?.icon} {b.crop}{b.bed?` · ${b.bed}`:""}</option>)}
+            </select>
+          </Field>
+          <Field label="Activity Type">
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:8 }}>
+              {typeConfig.map(({t,l,label})=>(
+                <button key={t} onClick={()=>set("type",t)} style={{ padding:"12px 6px", borderRadius:12, border:`2px solid ${form.type===t?"#14532D":"#E5E7EB"}`, background:form.type===t?"#F0FDF4":"#fff", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                  <span style={{ fontSize:22 }}>{l}</span>
+                  <span style={{ fontSize:11, fontWeight:600, color:form.type===t?"#14532D":"#6B7280" }}>{label}</span>
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Date"><input type="date" value={form.date} onChange={e=>set("date",e.target.value)} style={IS}/></Field>
+          {form.type==="irrigation" && (
+            <div style={{ display:"flex", gap:10 }}>
+              <Field label="Duration (min)" style={{ flex:1 }}><input type="number" value={form.duration} onChange={e=>set("duration",e.target.value)} placeholder="30" style={IS}/></Field>
+              <Field label="Amount (L)" style={{ flex:1 }}><input type="number" value={form.amount} onChange={e=>set("amount",e.target.value)} placeholder="200" style={IS}/></Field>
+            </div>
+          )}
+          {form.type==="fertilizer" && <>
+            <Field label="Product"><input value={form.product} onChange={e=>set("product",e.target.value)} placeholder="e.g. Compound C, Urea, AN" style={IS}/></Field>
+            <div style={{ display:"flex", gap:10 }}>
+              <Field label="Amount" style={{ flex:2 }}><input type="number" value={form.quantity} onChange={e=>set("quantity",e.target.value)} style={IS}/></Field>
+              <Field label="Unit" style={{ flex:1 }}><select value={form.unit} onChange={e=>set("unit",e.target.value)} style={IS}>{["kg","g","L","ml","bags"].map(u=><option key={u}>{u}</option>)}</select></Field>
+            </div>
+          </>}
+          {form.type==="harvest" && (
+            <div style={{ display:"flex", gap:10 }}>
+              <Field label="Quantity" style={{ flex:2 }}><input type="number" value={form.quantity} onChange={e=>set("quantity",e.target.value)} placeholder="e.g. 25" style={IS}/></Field>
+              <Field label="Unit" style={{ flex:1 }}><select value={form.unit} onChange={e=>set("unit",e.target.value)} style={IS}>{["kg","bunches","heads","crates","bags"].map(u=><option key={u}>{u}</option>)}</select></Field>
+            </div>
+          )}
+          <Field label="Logged by">
+            <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
+              {TEAM.map(n=>(
+                <button key={n} onClick={()=>set("logged_by",n)} style={{ padding:"8px 16px", borderRadius:99, border:"none", cursor:"pointer", fontSize:13, fontWeight:600,
+                  background:form.logged_by===n?"#14532D":"#F3F4F6", color:form.logged_by===n?"#fff":"#6B7280", transition:"all 0.15s" }}>{n}</button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Notes (optional)"><textarea value={form.notes} onChange={e=>set("notes",e.target.value)} rows={2} placeholder="Observations, pest sightings, conditions…" style={{...IS,resize:"vertical"}}/></Field>
+          <button onClick={handleSave} disabled={saving} style={{...BS,width:"100%",marginTop:8,opacity:saving?0.75:1}}>
+            {saving ? "⏳ Saving…" : "Save Activity"}
+          </button>
+        </Modal>
+      );
+    }
+
+    // ── BatchDetailModal ───────────────────────────────────────────────────
+    function BatchDetailModal({ batch, events, onClose, onDelete, onLog, deleting }) {
+      const meta = CROP_META[batch.crop]||{};
+      const irrigations = events.filter(e=>e.type==="irrigation");
+      const fertilizers = events.filter(e=>e.type==="fertilizer");
+      const harvests = events.filter(e=>e.type==="harvest");
+      const totalHarv = harvests.reduce((s,e)=>s+(parseFloat(e.quantity)||0),0);
+      const evtSummary = e => {
+        if (e.type==="irrigation") return e.duration?`Watered · ${e.duration} min`:"Irrigation";
+        if (e.type==="fertilizer") return e.product||"Fertilizer";
+        if (e.type==="harvest") return `${e.quantity} ${e.unit||"kg"}`;
+        return e.notes||"Note";
+      };
+      const evtIcon = t => ({irrigation:"💧",fertilizer:"🌿",harvest:"⚖️",note:"📝"}[t]||"📝");
+      return (
+        <Modal title={`${meta.icon} ${batch.crop}`} onClose={onClose}>
+          {batch.variety && <div style={{ fontSize:13, color:"#9CA3AF", marginTop:-12, marginBottom:12 }}>{batch.variety}</div>}
+          {batch.bed && <div style={{ display:"inline-flex", alignItems:"center", gap:4, background:"#F0FDF4", borderRadius:99, padding:"4px 12px", fontSize:12, color:"#16A34A", fontWeight:600, marginBottom:14 }}>📍 {batch.bed}{batch.area?` · ${batch.area} m²`:""}</div>}
+          <GrowthBar planted={batch.planted} harvest={batch.harvest}/>
+
+          <div style={{ display:"flex", gap:8, marginTop:16, marginBottom:16 }}>
+            {[
+              {v:irrigations.length, l:"Waterings",  bg:"#EFF6FF", fg:"#2563EB", icon:"💧"},
+              {v:fertilizers.length, l:"Feedings",   bg:"#F0FDF4", fg:"#16A34A", icon:"🌿"},
+              {v:totalHarv>0?`${totalHarv}kg`:harvests.length, l:"Harvested", bg:"#FFFBEB", fg:"#D97706", icon:"⚖️"},
+            ].map(({v,l,bg,fg,icon})=>(
+              <div key={l} style={{ flex:1, background:bg, borderRadius:12, padding:"12px 8px", textAlign:"center" }}>
+                <div style={{ fontSize:18, marginBottom:4 }}>{icon}</div>
+                <div style={{ fontSize:18, fontWeight:800, color:fg }}>{v}</div>
+                <div style={{ fontSize:11, color:fg, fontWeight:600 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ background:"#F9FAFB", borderRadius:12, padding:"10px 14px", marginBottom:14 }}>
+            <div style={{ fontSize:12, color:"#6B7280" }}>🔄 <span style={{ fontWeight:600, color:"#374151" }}>{batch.irrigation}</span></div>
+            {batch.logged_by && <div style={{ fontSize:12, color:"#9CA3AF", marginTop:4 }}>Added by {batch.logged_by}</div>}
+            {batch.notes && <div style={{ fontSize:12, color:"#6B7280", marginTop:4, fontStyle:"italic" }}>{batch.notes}</div>}
+          </div>
+
+          {events.length>0 && (
+            <div>
+              <div style={{ fontSize:12, fontWeight:700, color:"#374151", marginBottom:10, textTransform:"uppercase", letterSpacing:0.5 }}>Recent Activity</div>
+              {[...events].sort((a,b)=>b.date>a.date?1:-1).slice(0,6).map(e=>(
+                <div key={e.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", background:"#F9FAFB", borderRadius:10, marginBottom:6 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <span style={{ fontSize:16 }}>{evtIcon(e.type)}</span>
+                    <div>
+                      <div style={{ fontSize:13, color:"#1F2937", fontWeight:500 }}>{evtSummary(e)}</div>
+                      {e.logged_by && <div style={{ fontSize:11, color:"#9CA3AF" }}>{e.logged_by}</div>}
+                    </div>
+                  </div>
+                  <div style={{ fontSize:11, color:"#9CA3AF" }}>{fmt(e.date)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display:"flex", gap:10, marginTop:18 }}>
+            <button onClick={onLog} style={{...BS,flex:1}}>Log Activity</button>
+            <button onClick={()=>{if(confirm(`Delete ${batch.crop} batch?`))onDelete();}} disabled={deleting}
+              style={{ padding:"13px 16px", borderRadius:12, border:"none", background:"#FEF2F2", color:"#DC2626", fontSize:14, fontWeight:700, cursor:"pointer", opacity:deleting?0.6:1 }}>
+              {deleting?"…":"🗑"}
+            </button>
+          </div>
+        </Modal>
+      );
+    }
+
+    // ── CropsTab ───────────────────────────────────────────────────────────
+    function CropsTab({ batches, events, onAddBatch, onSelect, onLogEvent }) {
+      const sorted = [...batches].sort((a,b)=>a.planted>b.planted?-1:1);
+      return (
+        <div>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+            <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:"#111827" }}>Crop Batches</h2>
+            <button onClick={onAddBatch} style={{ background:"linear-gradient(135deg,#F59E0B,#D97706)", color:"#fff", border:"none", borderRadius:12, padding:"9px 16px", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 3px 10px rgba(217,119,6,0.3)" }}>+ New Batch</button>
+          </div>
+          {sorted.length===0 && (
+            <div style={{ textAlign:"center", padding:"60px 20px", color:"#9CA3AF" }}>
+              <div style={{ fontSize:52, marginBottom:14 }}>🌱</div>
+              <div style={{ fontSize:16, fontWeight:700, color:"#374151", marginBottom:6 }}>No crops planted yet</div>
+              <div style={{ fontSize:13 }}>Tap "+ New Batch" to get started</div>
+            </div>
+          )}
+          {sorted.map(b => {
+            const meta = CROP_META[b.crop]||{};
+            const bEvt = events.filter(e=>e.batchId===b.id);
+            const lastWatered = bEvt.filter(e=>e.type==="irrigation").sort((a,z)=>z.date>a.date?1:-1)[0];
+            const harvested = bEvt.filter(e=>e.type==="harvest").reduce((s,e)=>s+(parseFloat(e.quantity)||0),0);
+            return (
+              <div key={b.id} onClick={()=>onSelect(b)} className="fade-in"
+                style={{ background:"#fff", borderRadius:16, padding:16, marginBottom:12, boxShadow:"0 2px 10px rgba(0,0,0,0.06)", cursor:"pointer", borderLeft:`4px solid ${meta.color||"#16A34A"}`, transition:"transform 0.15s", }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+                  <div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
+                      <span style={{ fontSize:22 }}>{meta.icon}</span>
+                      <span style={{ fontSize:17, fontWeight:700, color:"#111827" }}>{b.crop}</span>
+                      {b.variety && <span style={{ fontSize:12, color:"#9CA3AF" }}>({b.variety})</span>}
+                    </div>
+                    {b.bed && <div style={{ display:"inline-flex", alignItems:"center", gap:4, background:meta.bg||"#F0FDF4", borderRadius:99, padding:"3px 10px", fontSize:11, color:meta.color, fontWeight:600 }}>📍 {b.bed}{b.area?` · ${b.area} m²`:""}</div>}
+                  </div>
+                  <button onClick={e=>{e.stopPropagation();onLogEvent(b.id);}}
+                    style={{ background:"#F0FDF4", color:"#16A34A", border:"1.5px solid #BBF7D0", borderRadius:10, padding:"6px 12px", fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>Log →</button>
+                </div>
+                <GrowthBar planted={b.planted} harvest={b.harvest}/>
+                <div style={{ display:"flex", gap:10, marginTop:10, fontSize:12, flexWrap:"wrap" }}>
+                  {lastWatered
+                    ? <span style={{ color:"#2563EB", background:"#EFF6FF", borderRadius:99, padding:"3px 10px", fontWeight:600 }}>💧 {fmt(lastWatered.date)}</span>
+                    : <span style={{ color:"#D97706", background:"#FFFBEB", borderRadius:99, padding:"3px 10px", fontWeight:600 }}>💧 Not watered yet</span>}
+                  {harvested>0 && <span style={{ color:"#D97706", background:"#FFFBEB", borderRadius:99, padding:"3px 10px", fontWeight:600 }}>⚖️ {harvested} kg</span>}
+                  <span style={{ color:"#6B7280", background:"#F3F4F6", borderRadius:99, padding:"3px 10px" }}>🔄 {b.irrigation}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ── DashboardTab ───────────────────────────────────────────────────────
+    function DashboardTab({ batches, events }) {
+      const activeBatches = batches.filter(b => daysBetween(b.planted,todayStr()) <= daysBetween(b.planted,b.harvest)+14);
+      const upcoming = batches.filter(b=>{const d=daysBetween(todayStr(),b.harvest);return d>=0&&d<=14;}).sort((a,b)=>a.harvest>b.harvest?1:-1);
+      const totalKg = events.filter(e=>e.type==="harvest").reduce((s,e)=>s+(parseFloat(e.quantity)||0),0);
+      const getBatchName = id => { const b=batches.find(b=>b.id===id); return b?`${CROP_META[b.crop]?.icon||"🌿"} ${b.crop}${b.bed?` · ${b.bed}`:""}`:"-"; };
+      const evtIcon = t => ({irrigation:"💧",fertilizer:"🌿",harvest:"⚖️",note:"📝"}[t]||"📝");
+      const evtSummary = e => {
+        if (e.type==="irrigation") return `Watered${e.duration?` · ${e.duration} min`:""}`;
+        if (e.type==="fertilizer") return e.product||"Fertilizer";
+        if (e.type==="harvest") return `${e.quantity} ${e.unit||"kg"}`;
+        return e.notes||"Note";
+      };
+      const recent = [...events].sort((a,b)=>b.date>a.date?1:-1).slice(0,10);
+      return (
+        <div>
+          <h2 style={{ margin:"0 0 16px", fontSize:18, fontWeight:800, color:"#111827" }}>Overview</h2>
+          <WeatherWidget/>
+
+          <div style={{ display:"flex", gap:10, marginBottom:16 }}>
+            <StatCard icon="🌱" label="Crop Batches" value={batches.length} sub={`${activeBatches.length} active`} color="#14532D" bg="#F0FDF4"/>
+            <StatCard icon="⚖️" label="Kg Harvested" value={totalKg.toFixed(1)} color="#D97706" bg="#FFFBEB" sub="total logged"/>
+          </div>
+
+          {upcoming.length>0 && (
+            <div style={{ background:"linear-gradient(135deg,#FFFBEB,#FEF3C7)", border:"1.5px solid #FCD34D", borderRadius:16, padding:16, marginBottom:16 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:"#92400E", marginBottom:10 }}>🗓 Harvest Due Within 2 Weeks</div>
+              {upcoming.map(b=>(
+                <div key={b.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderBottom:"1px solid rgba(0,0,0,0.05)" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <span style={{ fontSize:18 }}>{CROP_META[b.crop]?.icon}</span>
+                    <span style={{ fontSize:13, color:"#374151", fontWeight:600 }}>{b.crop}{b.bed?` · ${b.bed}`:""}</span>
+                  </div>
+                  <span style={{ fontSize:13, fontWeight:800, color:"#D97706" }}>{fmt(b.harvest)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
+            <div style={{ fontSize:13, fontWeight:700, color:"#111827", marginBottom:12, display:"flex", alignItems:"center", gap:6 }}>👥 Team Activity</div>
+            {recent.length===0 && <div style={{ color:"#9CA3AF", fontSize:13, textAlign:"center", padding:"24px 0" }}>No activity logged yet</div>}
+            {recent.map((e,i)=>(
+              <div key={e.id} style={{ display:"flex", gap:10, alignItems:"flex-start", paddingBottom:10, marginBottom:10, borderBottom:i<recent.length-1?"1px solid #F3F4F6":"none" }}>
+                <div style={{ width:36, height:36, borderRadius:10, background:{irrigation:"#EFF6FF",fertilizer:"#F0FDF4",harvest:"#FFFBEB",note:"#F9FAFB"}[e.type]||"#F9FAFB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>{evtIcon(e.type)}</div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:12, color:"#9CA3AF", marginBottom:2 }}>{getBatchName(e.batchId)}{e.logged_by?` · ${e.logged_by}`:""}</div>
+                  <div style={{ fontSize:13, color:"#1F2937", fontWeight:600 }}>{evtSummary(e)}</div>
+                  {e.notes && <div style={{ fontSize:11, color:"#9CA3AF", fontStyle:"italic", marginTop:2 }}>{e.notes}</div>}
+                </div>
+                <div style={{ fontSize:11, color:"#9CA3AF", whiteSpace:"nowrap" }}>{fmt(e.date)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ── LogTab ─────────────────────────────────────────────────────────────
+    function LogTab({ events, batches }) {
+      const [filter, setFilter] = useState("all");
+      const getBatchName = id => { const b=batches.find(b=>b.id===id); return b?`${CROP_META[b.crop]?.icon||"🌿"} ${b.crop}${b.bed?` · ${b.bed}`:""}`:"-"; };
+      const filtered = [...events].filter(e=>filter==="all"||e.type===filter).sort((a,b)=>b.date>a.date?1:-1);
+      const typeConfig = {
+        irrigation:{ bg:"#EFF6FF", fg:"#2563EB", lbl:"💧 Water" },
+        fertilizer:{ bg:"#F0FDF4", fg:"#16A34A", lbl:"🌿 Fertilizer" },
+        harvest:   { bg:"#FFFBEB", fg:"#D97706", lbl:"⚖️ Harvest" },
+        note:      { bg:"#F9FAFB", fg:"#6B7280", lbl:"📝 Note" },
+      };
+      return (
+        <div>
+          <h2 style={{ margin:"0 0 16px", fontSize:18, fontWeight:800, color:"#111827" }}>Activity Log</h2>
+          <div style={{ display:"flex", gap:8, marginBottom:16, overflowX:"auto", paddingBottom:2 }}>
+            {[{key:"all",label:"All"},{key:"irrigation",label:"💧 Water"},{key:"fertilizer",label:"🌿 Feed"},{key:"harvest",label:"⚖️ Harvest"}].map(c=>(
+              <button key={c.key} onClick={()=>setFilter(c.key)} style={{ padding:"7px 16px", borderRadius:99, fontSize:12, fontWeight:600, whiteSpace:"nowrap", border:"none", cursor:"pointer", transition:"all 0.15s",
+                background:filter===c.key?"#14532D":"#E5E7EB", color:filter===c.key?"#fff":"#6B7280",
+                boxShadow:filter===c.key?"0 2px 8px rgba(20,83,45,0.25)":"none" }}>{c.label}</button>
+            ))}
+          </div>
+          {filtered.length===0 && <div style={{ textAlign:"center", padding:"48px 0", color:"#9CA3AF", fontSize:13 }}>No events logged yet</div>}
+          {filtered.map(e => {
+            const tc = typeConfig[e.type]||typeConfig.note;
+            return (
+              <div key={e.id} className="fade-in" style={{ background:"#fff", borderRadius:14, padding:14, marginBottom:10, boxShadow:"0 2px 6px rgba(0,0,0,0.05)" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                  <span style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"4px 12px", borderRadius:99, fontSize:12, fontWeight:700, background:tc.bg, color:tc.fg }}>{tc.lbl}</span>
+                  <span style={{ fontSize:11, color:"#9CA3AF" }}>{fmt(e.date)}</span>
+                </div>
+                <div style={{ fontSize:12, color:"#9CA3AF", marginBottom:6 }}>{getBatchName(e.batchId)}{e.logged_by?<span style={{ color:"#14532D", fontWeight:600 }}> · {e.logged_by}</span>:null}</div>
+                {e.type==="irrigation" && <div style={{ fontSize:13,color:"#1F2937",fontWeight:500 }}>{e.duration?`Duration: ${e.duration} min`:"Irrigation logged"}{e.amount?` · ${e.amount} L`:""}</div>}
+                {e.type==="fertilizer" && <div style={{ fontSize:13,color:"#1F2937",fontWeight:500 }}>{e.product||"Fertilizer"}{e.quantity?` · ${e.quantity} ${e.unit||""}`:""}</div>}
+                {e.type==="harvest" && <div style={{ fontSize:16,fontWeight:800,color:"#D97706" }}>{e.quantity} {e.unit||"kg"}</div>}
+                {e.notes && <div style={{ fontSize:12,color:"#6B7280",marginTop:6,fontStyle:"italic",padding:"6px 10px",background:"#F9FAFB",borderRadius:8 }}>{e.notes}</div>}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ── App ────────────────────────────────────────────────────────────────
+    function App() {
+      const [tab, setTab] = useState("crops");
+      const [batches, setBatches] = useState([]);
+      const [events, setEvents] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [syncing, setSyncing] = useState(false);
+      const [lastSync, setLastSync] = useState(null);
+      const [toast, setToast] = useState(null);
+      const [detail, setDetail] = useState(null);
+      const [deleting, setDeleting] = useState(false);
+      const [showAddBatch, setShowAddBatch] = useState(false);
+      const [showAddEvent, setShowAddEvent] = useState(false);
+      const [eventBatchId, setEventBatchId] = useState(null);
+
+      const showToast = (msg, type="error") => { setToast({msg,type}); setTimeout(()=>setToast(null),3500); };
+
+      const fetchAll = useCallback(async (quiet=false) => {
+        if (!quiet) setSyncing(true);
+        try {
+          const [{ data:b, error:be },{ data:e, error:ee }] = await Promise.all([
+            sb.from("batches").select("*").order("created_at",{ascending:false}),
+            sb.from("events").select("*").order("date",{ascending:false}),
+          ]);
+          if (be||ee) throw new Error(be?.message||ee?.message);
+          setBatches((b||[]).map(normBatch));
+          setEvents((e||[]).map(normEvent));
+          setLastSync(new Date());
+        } catch(err) {
+          showToast("Sync failed — check your connection");
+        } finally { setSyncing(false); setLoading(false); }
+      }, []);
+
+      useEffect(() => {
+        fetchAll();
+        const onVisible = () => { if (document.visibilityState==="visible") fetchAll(true); };
+        document.addEventListener("visibilitychange", onVisible);
+        const channel = sb.channel("farm-realtime")
+          .on("postgres_changes",{event:"*",schema:"public",table:"batches"},()=>fetchAll(true))
+          .on("postgres_changes",{event:"*",schema:"public",table:"events"}, ()=>fetchAll(true))
+          .subscribe();
+        return () => { document.removeEventListener("visibilitychange",onVisible); sb.removeChannel(channel); };
+      }, [fetchAll]);
+
+      const addBatch = async form => {
+        const batch = { ...denormBatch({...form,createdAt:undefined}), id:uid() };
+        const { error } = await sb.from("batches").insert(batch);
+        if (error) { showToast("Failed to save batch"); return; }
+        setShowAddBatch(false);
+        showToast("Batch saved ✓","success");
+        fetchAll(true);
+      };
+
+      const deleteBatch = async id => {
+        setDeleting(true);
+        const { error } = await sb.from("batches").delete().eq("id",id);
+        if (error) { showToast("Failed to delete batch"); setDeleting(false); return; }
+        setDetail(null); setDeleting(false);
+        showToast("Batch deleted","info");
+        fetchAll(true);
+      };
+
+      const addEvent = async form => {
+        const event = { ...denormEvent({...form,createdAt:undefined}), id:uid() };
+        const { error } = await sb.from("events").insert(event);
+        if (error) { showToast("Failed to save activity"); return; }
+        setShowAddEvent(false); setEventBatchId(null);
+        showToast("Activity logged ✓","success");
+        fetchAll(true);
+      };
+
+      const openLog = id => { setEventBatchId(id); setDetail(null); setShowAddEvent(true); };
+
+      const fmtSync = () => {
+        if (!lastSync) return "";
+        const mins = Math.round((new Date()-lastSync)/60000);
+        return mins < 1 ? "Just synced" : `${mins}m ago`;
+      };
+
+      if (loading) return (
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100vh", background:"linear-gradient(160deg,#14532D 0%,#166534 100%)", gap:16 }}>
+          <div style={{ fontSize:64, animation:"pulse 1.5s ease infinite" }}>🌱</div>
+          <div style={{ color:"#fff", fontSize:18, fontWeight:700 }}>Farm Manager</div>
+          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:13 }}>Loading shared farm data…</div>
+          <div style={{ width:48, height:48, border:"3px solid rgba(255,255,255,0.2)", borderTopColor:"#fff", borderRadius:"50%", animation:"spin 0.8s linear infinite", marginTop:8 }}/>
+        </div>
+      );
+
+      return (
+        <div style={{ fontFamily:"system-ui,-apple-system,sans-serif", background:"#F0F7F0", minHeight:"100vh", maxWidth:480, margin:"0 auto", paddingBottom:84 }}>
+          {toast && <Toast msg={toast.msg} type={toast.type}/>}
+
+          {/* Header */}
+          <div style={{ background:"linear-gradient(135deg,#14532D 0%,#166534 100%)", color:"#fff", padding:"20px 16px 16px", boxShadow:"0 4px 16px rgba(20,83,45,0.25)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ fontSize:10, letterSpacing:3, textTransform:"uppercase", opacity:0.6, marginBottom:4 }}>📍 Ntabazinduna · Zimbabwe</div>
+                <div style={{ fontSize:22, fontWeight:800, letterSpacing:-0.5 }}>🌱 Farm Manager</div>
+              </div>
+              <button onClick={()=>fetchAll()} style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, padding:"7px 12px", color:"#fff", cursor:"pointer", fontSize:12, display:"flex", alignItems:"center", gap:6, backdropFilter:"blur(4px)" }}>
+                <span className={syncing?"spin":""} style={{ fontSize:15 }}>↻</span>
+                <span style={{ opacity:0.85 }}>{syncing?"Syncing…":fmtSync()}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Team banner */}
+          <div style={{ background:"#DCFCE7", padding:"8px 16px", display:"flex", alignItems:"center", gap:8, borderBottom:"1px solid #BBF7D0" }}>
+            <span style={{ fontSize:13 }}>👥</span>
+            <span style={{ fontSize:12, color:"#14532D", fontWeight:700 }}>Shared with Lincoln · Thandeka · Vuyi · Velile</span>
+          </div>
+
+          <div style={{ padding:16 }}>
+            {tab==="crops"     && <CropsTab batches={batches} events={events} onAddBatch={()=>setShowAddBatch(true)} onSelect={setDetail} onLogEvent={openLog}/>}
+            {tab==="dashboard" && <DashboardTab batches={batches} events={events}/>}
+            {tab==="log"       && <LogTab events={events} batches={batches}/>}
+          </div>
+
+          {/* Bottom Nav */}
+          <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:"#fff", borderTop:"1px solid #E5E7EB", display:"flex", zIndex:100, boxShadow:"0 -4px 20px rgba(0,0,0,0.08)" }}>
+            {[
+              {key:"dashboard",icon:"📊",label:"Overview"},
+              {key:"crops",    icon:"🌱",label:"Crops"},
+              {key:"log",      icon:"📋",label:"History"},
+            ].map(t=>(
+              <button key={t.key} onClick={()=>setTab(t.key)} style={{ flex:1, padding:"11px 0 9px", background:"none", border:"none", cursor:"pointer",
+                display:"flex", flexDirection:"column", alignItems:"center", gap:3,
+                color:tab===t.key?"#14532D":"#9CA3AF", fontWeight:tab===t.key?700:400, fontSize:11,
+                borderTop:tab===t.key?"2.5px solid #14532D":"2.5px solid transparent" }}>
+                <span style={{ fontSize:22 }}>{t.icon}</span>{t.label}
+              </button>
+            ))}
+          </div>
+
+          {showAddBatch && <AddBatchModal onSave={addBatch} onClose={()=>setShowAddBatch(false)}/>}
+          {showAddEvent && <AddEventModal batches={batches} defaultBatchId={eventBatchId} onSave={addEvent} onClose={()=>{setShowAddEvent(false);setEventBatchId(null);}}/>}
+          {detail && <BatchDetailModal batch={detail} events={events.filter(e=>e.batchId===detail.id)}
+            onClose={()=>setDetail(null)} onDelete={()=>deleteBatch(detail.id)} onLog={()=>openLog(detail.id)} deleting={deleting}/>}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", ()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+    }
+  </script>
+</body>
+</html>
