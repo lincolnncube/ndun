@@ -3,23 +3,24 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<meta name="theme-color" content="#14532D"/>
+<meta name="theme-color" content="#0F3D1F"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-title" content="Farm Manager"/>
-<title>Farm Manager</title>
+<title>Farm Manager · Ntabazinduna</title>
 <link rel="manifest" href="manifest.json"/>
 <link rel="icon" href="icon-192.png"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%}
-body{background:#F0F7F0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+body{background:#EEF5EE;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
 input,select,textarea,button{font-family:inherit}
 ::-webkit-scrollbar{display:none}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 .spin{animation:spin .8s linear infinite;display:inline-block}
 .fade{animation:fadeUp .3s ease}
 </style>
@@ -31,20 +32,19 @@ input,select,textarea,button{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script type="text/babel">
-const{useState,useEffect,useCallback,useRef}=React;
+const{useState,useEffect,useCallback}=React;
 
 // ── Supabase ───────────────────────────────────────────────────────────────
 const SB_URL="https://qltqtilgqglkwiguuxpv.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsdHF0aWxncWdsa3dpZ3V1eHB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxODk5NjEsImV4cCI6MjA5Nzc2NTk2MX0.c9OGIiG0ZOPQJXfFQltTmGBSfeUMaayio11uZ0Pk6gw";
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
-// ── Normalisation ──────────────────────────────────────────────────────────
+// ── Data normalisation ─────────────────────────────────────────────────────
 const nB=b=>({...b,createdAt:b.created_at});
 const dB=({createdAt,...b})=>b;
 const nE=e=>({...e,batchId:e.batch_id,createdAt:e.created_at});
 const dE=({batchId,createdAt,...e})=>({...e,batch_id:batchId});
 const nF=f=>({...f,batchId:f.batch_id,fertId:f.fert_id,createdAt:f.created_at});
-const dF=({batchId,fertId,createdAt,...f})=>({...f,batch_id:batchId,fert_id:fertId});
 const nC=c=>({...c,startDate:c.start_date,numBirds:c.num_birds,costPerChick:c.cost_per_chick,priceStarter:c.price_starter,priceGrower:c.price_grower,priceFinisher:c.price_finisher,avgWeight:c.avg_weight,salePrice:c.sale_price,otherCosts:c.other_costs,loggedBy:c.logged_by,createdAt:c.created_at});
 const dC=({startDate,numBirds,costPerChick,priceStarter,priceGrower,priceFinisher,avgWeight,salePrice,otherCosts,loggedBy,createdAt,...c})=>({...c,start_date:startDate,num_birds:numBirds,cost_per_chick:costPerChick,price_starter:priceStarter,price_grower:priceGrower,price_finisher:priceFinisher,avg_weight:avgWeight,sale_price:salePrice,other_costs:otherCosts,logged_by:loggedBy});
 const nT=t=>({...t,dueDate:t.due_date,assignedTo:t.assigned_to,completedDate:t.completed_date,createdAt:t.created_at});
@@ -52,7 +52,7 @@ const dT=({dueDate,assignedTo,completedDate,createdAt,...t})=>({...t,due_date:du
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const CROPS=["Spinach","Cabbage","Kale","Red Onions","Tomatoes"];
-const CM={Spinach:{icon:"🥬",color:"#16A34A",bg:"#DCFCE7",days:45},Cabbage:{icon:"🥬",color:"#15803D",bg:"#D1FAE5",days:80},Kale:{icon:"🌿",color:"#166534",bg:"#BBF7D0",days:60},"Red Onions":{icon:"🧅",color:"#BE185D",bg:"#FCE7F3",days:120},Tomatoes:{icon:"🍅",color:"#DC2626",bg:"#FEE2E2",days:75}};
+const CM={Spinach:{icon:"🥬",color:"#16A34A",bg:"#DCFCE7",grad:"linear-gradient(135deg,#16A34A,#15803D)",days:45},Cabbage:{icon:"🥬",color:"#15803D",bg:"#D1FAE5",grad:"linear-gradient(135deg,#15803D,#166534)",days:80},Kale:{icon:"🌿",color:"#166534",bg:"#BBF7D0",grad:"linear-gradient(135deg,#166534,#14532D)",days:60},"Red Onions":{icon:"🧅",color:"#BE185D",bg:"#FCE7F3",grad:"linear-gradient(135deg,#BE185D,#9D174D)",days:120},Tomatoes:{icon:"🍅",color:"#DC2626",bg:"#FEE2E2",grad:"linear-gradient(135deg,#DC2626,#B91C1C)",days:75}};
 const TEAM=["Lincoln","Thandeka","Vuyi","Velile"];
 const IRR=["Daily","Every 2 days","Every 3 days","Twice weekly","Weekly","As needed"];
 const FP=[
@@ -73,10 +73,13 @@ const today=()=>new Date().toISOString().split("T")[0];
 const dBetween=(a,b)=>Math.round((new Date(b)-new Date(a))/86400000);
 const wBetween=(a,b)=>Math.floor(dBetween(a,b)/7);
 const fmt=d=>d?new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}):"—";
+const fmtShort=d=>d?new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"—";
 const uid=()=>Math.random().toString(36).slice(2,11);
 const $=n=>`$${(+n||0).toFixed(2)}`;
+const DAYS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const fmtH=h=>h===0?"12am":h<12?`${h}am`:h===12?"12pm":`${h-12}pm`;
 
-// ── Chicken Calc ───────────────────────────────────────────────────────────
+// ── Chicken Calculator ─────────────────────────────────────────────────────
 function calcBatch(b){
   const dOld=Math.max(0,dBetween(b.startDate,today()));
   const alive=(b.numBirds||0)-(b.mortality||0);
@@ -97,116 +100,172 @@ function calcBatch(b){
   return{dOld,alive,phases,feedCost,chickCost,other,totalCost,revenue,profit,cp,dlp,mortalityPct:(((b.mortality||0)/(b.numBirds||1))*100).toFixed(1)};
 }
 
-// ── Weather ────────────────────────────────────────────────────────────────
+// ── Weather Logic ──────────────────────────────────────────────────────────
 const WI={0:"☀️",1:"🌤",2:"⛅",3:"☁️",45:"🌫",51:"🌦",53:"🌦",61:"🌧",63:"🌧",65:"🌧",80:"🌦",81:"🌧",95:"⛈"};
 const WT={0:"Clear sky",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",45:"Foggy",51:"Light drizzle",53:"Drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",80:"Showers",95:"Thunderstorm"};
-const DAYS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const fmtH=h=>h===0?"12am":h<12?`${h}am`:h===12?"12pm":`${h-12}pm`;
 
-function getTips(c){
-  const tips=[],hr=new Date().getHours();
-  if(c.precipitation>5)tips.push({i:"💧",col:"#2563EB",t:"Rain today — skip irrigation"});
-  else if(c.temperature_2m>34)tips.push({i:"🌡️",col:"#DC2626",t:hr<9?"Hot day ahead — water now before heat builds":"Very hot — mulch soil & shade seedlings"});
-  if(c.relative_humidity_2m>85&&c.temperature_2m>22)tips.push({i:"🍄",col:"#D97706",t:"High humidity + heat = fungal risk on leaves"});
-  if(c.weathercode<=1&&c.temperature_2m>=18&&c.temperature_2m<=28)tips.push({i:"✅",col:"#16A34A",t:hr<12?"Perfect morning for field work":"Good afternoon for transplanting"});
-  if(c.temperature_2m>=15&&c.temperature_2m<=22)tips.push({i:"🥬",col:"#15803D",t:"Cool temps — great for brassicas & spinach"});
-  if(c.temperature_2m>28&&c.relative_humidity_2m<50)tips.push({i:"🐔",col:"#F59E0B",t:"Hot & dry — ensure chickens have plenty of water"});
-  if(hr>=5&&hr<8)tips.push({i:"🌄",col:"#B45309",t:"Early morning — best time to scout for pests"});
-  return tips.slice(0,3);
+function getDailyBriefing(current,daily){
+  const maxT=Math.round(daily.temperature_2m_max[0]),minT=Math.round(daily.temperature_2m_min[0]);
+  const rain=daily.precipitation_sum[0],code=daily.weathercode[0];
+  const rh=current.relative_humidity_2m;
+  if(rain>15)return{icon:"⛈",col:"#7C3AED",title:"Heavy Rain Day",text:`${rain}mm expected — skip ALL irrigation, check field drainage urgently. Keep chickens dry. Avoid any spraying today.`};
+  if(rain>5)return{icon:"🌧",col:"#2563EB",title:"Rain Expected",text:`${rain}mm of rain coming. Hold off watering — let the rain do the work. Good day for planning and indoor tasks.`};
+  if(maxT>36)return{icon:"🔥",col:"#DC2626",title:"Extreme Heat Alert",text:`Peak of ${maxT}°C today. Water crops before 7am. Double chicken water supply and provide shade. Watch tomatoes for heat stress and blossom drop.`};
+  if(maxT>32&&rh<40)return{icon:"🌡️",col:"#EA580C",title:"Hot & Dry Day",text:`${maxT}°C with low humidity. High evaporation — check soil moisture frequently. Mulch any bare beds. Chickens need extra water.`};
+  if(maxT<14)return{icon:"🥶",col:"#0284C7",title:"Cold Day",text:`Max ${maxT}°C, min ${minT}°C. Growth will slow — hold off fertilizer applications. Good day for harvesting leafy greens and maintenance tasks.`};
+  if(rh>85&&maxT>22)return{icon:"🍄",col:"#B45309",title:"Fungal Risk High",text:`High humidity (${rh}%) all day. Inspect tomatoes and cabbages closely for blight and mildew. Consider a protective copper fungicide spray.`};
+  if(code<=1&&maxT>=20&&maxT<=30)return{icon:"🌟",col:"#16A34A",title:"Perfect Farming Day",text:`${maxT}°C and clear — ideal conditions. Great for transplanting, pest scouting, fertilizer applications and general field work. Make the most of it!`};
+  if(code<=2&&maxT>=18)return{icon:"✅",col:"#15803D",title:"Good Day Ahead",text:`Mild ${maxT}°C with ${WT[code]||"good"} conditions. Suitable for most farm activities. Check your task list and prioritise field inspections.`};
+  return{icon:"🌤",col:"#6B7280",title:"Moderate Conditions",text:`${maxT}°C today — decent conditions for most tasks. Review irrigation schedules and check on crop progress.`};
 }
 
+function getFarmTips(current){
+  const tips=[],hr=new Date().getHours();
+  const{temperature_2m:temp,relative_humidity_2m:rh,precipitation:rain,weathercode:code,windspeed_10m:wind}=current;
+  if(rain>5)tips.push({i:"💧",col:"#2563EB",t:"Rain now — skip irrigation completely"});
+  else if(temp>34&&hr<9)tips.push({i:"🌅",col:"#EA580C",t:"Hot day — water crops NOW before heat builds"});
+  else if(temp>34)tips.push({i:"🌡️",col:"#DC2626",t:"Very hot — mulch soil & shade young seedlings"});
+  if(rh>85&&temp>22)tips.push({i:"🍄",col:"#D97706",t:"Humidity + heat = fungal risk — inspect leaves"});
+  if(wind>30)tips.push({i:"💨",col:"#6B7280",t:"Strong winds — stake tomatoes & tall brassicas"});
+  if(code<=1&&temp>=18&&temp<=30)tips.push({i:"✅",col:"#16A34A",t:hr<12?"Perfect morning for field work":"Good afternoon for transplanting"});
+  if(temp>=15&&temp<=22)tips.push({i:"🥬",col:"#15803D",t:"Cool temps — ideal for spinach & kale growth"});
+  if(temp>28&&rh<50)tips.push({i:"🐔",col:"#F59E0B",t:"Hot & dry — chickens need extra water now"});
+  if(hr>=5&&hr<8)tips.push({i:"🌄",col:"#B45309",t:"Early morning — best time to scout for pests"});
+  if(hr>=17&&hr<20)tips.push({i:"🌇",col:"#7C3AED",t:"Evening — good time for foliar spray if needed"});
+  return tips.slice(0,4);
+}
+
+// ── WEATHER WIDGET ─────────────────────────────────────────────────────────
 function WeatherWidget(){
   const[wx,setWx]=useState(null);
   const[loading,setLoading]=useState(true);
   useEffect(()=>{
-    fetch("https://api.open-meteo.com/v1/forecast?latitude=-20.02&longitude=28.91&current=temperature_2m,relative_humidity_2m,precipitation,weathercode,windspeed_10m,apparent_temperature&hourly=temperature_2m,precipitation_probability,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Africa%2FHarare&forecast_days=6&forecast_hours=24")
+    fetch("https://api.open-meteo.com/v1/forecast?latitude=-20.02&longitude=28.91&current=temperature_2m,relative_humidity_2m,precipitation,weathercode,windspeed_10m,apparent_temperature&hourly=temperature_2m,precipitation_probability,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset&timezone=Africa%2FHarare&forecast_days=6&forecast_hours=24")
       .then(r=>r.json()).then(d=>{setWx(d);setLoading(false);}).catch(()=>setLoading(false));
   },[]);
-  if(loading)return<div style={{background:"linear-gradient(135deg,#14532D,#166534)",borderRadius:18,padding:18,marginBottom:14,color:"#fff",fontSize:13,opacity:.8}}>🌤 Loading weather for Ntabazinduna…</div>;
+  if(loading)return(
+    <div style={{background:"linear-gradient(145deg,#0F3D1F,#166534)",borderRadius:22,padding:24,marginBottom:16,color:"#fff"}}>
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        <div style={{fontSize:36,animation:"pulse 1.5s ease infinite"}}>🌤</div>
+        <div><div style={{fontSize:14,fontWeight:600}}>Loading weather…</div><div style={{fontSize:12,opacity:.6}}>Ntabazinduna, Zimbabwe</div></div>
+      </div>
+    </div>
+  );
   if(!wx?.current)return null;
   const c=wx.current,d=wx.daily,h=wx.hourly,code=c.weathercode;
-  const tips=getTips(c);
+  const briefing=getDailyBriefing(c,d);
+  const tips=getFarmTips(c);
   const nowH=new Date().getHours();
-  const hS=h.time.findIndex(t=>new Date(t).getHours()>=nowH&&new Date(t).toDateString()===new Date().toDateString());
-  const n12=h.time.slice(hS,hS+12).map((t,i)=>({hr:new Date(t).getHours(),temp:Math.round(h.temperature_2m[hS+i]),pop:h.precipitation_probability[hS+i],icon:WI[h.weathercode[hS+i]]||"🌡"}));
+  const hS=Math.max(0,h.time.findIndex(t=>new Date(t).getHours()>=nowH&&new Date(t).toDateString()===new Date().toDateString()));
+  const n10=h.time.slice(hS,hS+10).map((t,i)=>({hr:new Date(t).getHours(),temp:Math.round(h.temperature_2m[hS+i]),pop:h.precipitation_probability[hS+i],icon:WI[h.weathercode[hS+i]]||"🌡"}));
   return(
-    <div style={{borderRadius:18,overflow:"hidden",marginBottom:14,boxShadow:"0 8px 28px rgba(20,83,45,.18)"}}>
-      <div style={{background:"linear-gradient(145deg,#14532D,#166534,#15803D)",padding:"18px 16px 14px",color:"#fff"}}>
-        <div style={{fontSize:10,letterSpacing:3,textTransform:"uppercase",opacity:.6,marginBottom:10}}>📍 Ntabazinduna · Now</div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+    <div style={{borderRadius:22,overflow:"hidden",marginBottom:16,boxShadow:"0 12px 40px rgba(15,61,31,.22)"}}>
+
+      {/* Main card */}
+      <div style={{background:"linear-gradient(160deg,#0F3D1F 0%,#166534 45%,#1A7A3E 100%)",padding:"22px 18px 18px",color:"#fff",position:"relative",overflow:"hidden"}}>
+        {/* Decorative circles */}
+        <div style={{position:"absolute",top:-40,right:-40,width:180,height:180,borderRadius:"50%",background:"rgba(255,255,255,.04)"}}/>
+        <div style={{position:"absolute",top:20,right:-20,width:100,height:100,borderRadius:"50%",background:"rgba(255,255,255,.06)"}}/>
+        <div style={{fontSize:10,letterSpacing:3,textTransform:"uppercase",opacity:.55,marginBottom:14,position:"relative"}}>📍 Ntabazinduna · Live Weather</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,position:"relative"}}>
           <div>
-            <div style={{fontSize:50,fontWeight:800,lineHeight:1,letterSpacing:-2}}>{Math.round(c.temperature_2m)}°</div>
-            <div style={{fontSize:12,opacity:.7,marginTop:2}}>Feels like {Math.round(c.apparent_temperature)}°C</div>
-            <div style={{fontSize:14,fontWeight:600,marginTop:4}}>{WT[code]||"—"}</div>
+            <div style={{fontSize:58,fontWeight:900,lineHeight:1,letterSpacing:-3}}>{Math.round(c.temperature_2m)}°<span style={{fontSize:28,fontWeight:400,opacity:.7}}>C</span></div>
+            <div style={{fontSize:12,opacity:.65,marginTop:3}}>Feels like {Math.round(c.apparent_temperature)}°C</div>
+            <div style={{fontSize:15,fontWeight:700,marginTop:6,letterSpacing:.2}}>{WT[code]||"—"}</div>
+            <div style={{fontSize:12,opacity:.6,marginTop:2}}>↑{Math.round(d.temperature_2m_max[0])}° ↓{Math.round(d.temperature_2m_min[0])}°</div>
           </div>
-          <div style={{textAlign:"center"}}>
-            <div style={{fontSize:56,lineHeight:1}}>{WI[code]||"🌡"}</div>
-            <div style={{fontSize:11,opacity:.65,marginTop:4}}>↑{Math.round(d.temperature_2m_max[0])}° ↓{Math.round(d.temperature_2m_min[0])}°</div>
+          <div style={{textAlign:"center",position:"relative"}}>
+            <div style={{fontSize:72,lineHeight:1,filter:"drop-shadow(0 4px 12px rgba(0,0,0,.3))"}}>{WI[code]||"🌡"}</div>
           </div>
         </div>
-        <div style={{display:"flex",background:"rgba(255,255,255,.1)",borderRadius:10,overflow:"hidden",marginBottom:12}}>
+        {/* Stats row */}
+        <div style={{display:"flex",background:"rgba(255,255,255,.12)",borderRadius:14,overflow:"hidden",backdropFilter:"blur(8px)",marginBottom:16}}>
           {[{i:"💧",v:`${c.precipitation}mm`,l:"Rain"},{i:"💦",v:`${c.relative_humidity_2m}%`,l:"Humidity"},{i:"🌬",v:`${Math.round(c.windspeed_10m)}km/h`,l:"Wind"}].map((s,i)=>(
-            <div key={i} style={{flex:1,padding:"9px 4px",textAlign:"center",borderRight:i<2?"1px solid rgba(255,255,255,.15)":"none"}}>
-              <div style={{fontSize:15}}>{s.i}</div><div style={{fontSize:12,fontWeight:700}}>{s.v}</div><div style={{fontSize:10,opacity:.6}}>{s.l}</div>
+            <div key={i} style={{flex:1,padding:"10px 4px",textAlign:"center",borderRight:i<2?"1px solid rgba(255,255,255,.15)":"none"}}>
+              <div style={{fontSize:16}}>{s.i}</div><div style={{fontSize:13,fontWeight:700,marginTop:2}}>{s.v}</div><div style={{fontSize:10,opacity:.6}}>{s.l}</div>
             </div>
           ))}
         </div>
+        {/* Hourly scroll */}
+        <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",opacity:.5,marginBottom:8}}>Hourly Forecast</div>
         <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:2}}>
-          {n12.slice(0,10).map((h,i)=>(
-            <div key={i} style={{background:i===0?"rgba(255,255,255,.25)":"rgba(255,255,255,.1)",borderRadius:10,padding:"8px 8px",textAlign:"center",minWidth:52,flexShrink:0}}>
+          {n10.map((h,i)=>(
+            <div key={i} style={{background:i===0?"rgba(255,255,255,.22)":"rgba(255,255,255,.1)",borderRadius:12,padding:"8px 8px",textAlign:"center",minWidth:54,flexShrink:0,border:i===0?"1px solid rgba(255,255,255,.3)":"1px solid transparent",backdropFilter:"blur(4px)"}}>
               <div style={{fontSize:10,opacity:.7,marginBottom:3,fontWeight:i===0?700:400}}>{i===0?"Now":fmtH(h.hr)}</div>
               <div style={{fontSize:18,marginBottom:3}}>{h.icon}</div>
               <div style={{fontSize:12,fontWeight:700}}>{h.temp}°</div>
-              {h.pop>10&&<div style={{fontSize:9,color:"#93C5FD",marginTop:2}}>{h.pop}%</div>}
+              {h.pop>15&&<div style={{fontSize:9,color:"#93C5FD",marginTop:2}}>{h.pop}%</div>}
             </div>
           ))}
         </div>
+        {/* DAILY BRIEFING inside the widget */}
+        <div style={{marginTop:14,background:"rgba(255,255,255,.12)",borderRadius:14,padding:"12px 14px",border:"1px solid rgba(255,255,255,.18)",backdropFilter:"blur(4px)"}}>
+          <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",opacity:.6,marginBottom:8}}>📋 Today's Briefing</div>
+          <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+            <span style={{fontSize:26,flexShrink:0}}>{briefing.icon}</span>
+            <div>
+              <div style={{fontSize:13,fontWeight:800,color:"#fff",marginBottom:3}}>{briefing.title}</div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,.8)",lineHeight:1.5}}>{briefing.text}</div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div style={{background:"#145228",padding:"10px 14px 12px"}}>
+
+      {/* 5-day forecast */}
+      <div style={{background:"#1A5C35",padding:"12px 16px 14px"}}>
+        <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"rgba(255,255,255,.5)",marginBottom:10}}>5-Day Forecast</div>
         <div style={{display:"flex",gap:5}}>
           {d.time.slice(0,5).map((t,i)=>(
-            <div key={t} style={{flex:1,background:"rgba(255,255,255,.08)",borderRadius:10,padding:"8px 4px",textAlign:"center"}}>
+            <div key={t} style={{flex:1,background:"rgba(255,255,255,.08)",borderRadius:12,padding:"9px 4px",textAlign:"center",border:"1px solid rgba(255,255,255,.06)"}}>
               <div style={{fontSize:10,color:"rgba(255,255,255,.6)",marginBottom:4,fontWeight:600}}>{i===0?"Today":DAYS[new Date(t).getDay()]}</div>
               <div style={{fontSize:20,marginBottom:4}}>{WI[d.weathercode[i]]||"🌡"}</div>
               <div style={{fontSize:12,fontWeight:800,color:"#fff"}}>{Math.round(d.temperature_2m_max[i])}°</div>
-              <div style={{fontSize:10,color:"rgba(255,255,255,.5)"}}>{Math.round(d.temperature_2m_min[i])}°</div>
-              {d.precipitation_sum[i]>0.5&&<div style={{fontSize:9,color:"#93C5FD",marginTop:2}}>{d.precipitation_sum[i].toFixed(1)}mm</div>}
+              <div style={{fontSize:10,color:"rgba(255,255,255,.45)"}}>{Math.round(d.temperature_2m_min[i])}°</div>
+              {d.precipitation_sum[i]>0.5&&<div style={{fontSize:9,color:"#93C5FD",marginTop:3}}>{d.precipitation_sum[i].toFixed(1)}mm</div>}
             </div>
           ))}
         </div>
       </div>
+
+      {/* FARM TIPS — separate general card */}
       {tips.length>0&&(
-        <div style={{background:"#F0FDF4",padding:"12px 14px",borderTop:"1px solid #BBF7D0"}}>
-          <div style={{fontSize:10,fontWeight:700,color:"#14532D",letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>🌾 Farm Tips for Today</div>
-          {tips.map((t,i)=>(
-            <div key={i} style={{display:"flex",alignItems:"center",gap:8,background:"#fff",borderRadius:10,padding:"8px 10px",marginBottom:i<tips.length-1?6:0,borderLeft:`3px solid ${t.col}`}}>
-              <span style={{fontSize:16}}>{t.i}</span>
-              <span style={{fontSize:12,color:"#1F2937",fontWeight:500}}>{t.t}</span>
-            </div>
-          ))}
+        <div style={{background:"#F0FDF4",padding:"12px 16px 14px",borderTop:"1px solid #D1FAE5"}}>
+          <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"#16A34A",marginBottom:10,fontWeight:700}}>🌾 Right Now</div>
+          <div style={{display:"flex",flexDirection:"column",gap:7}}>
+            {tips.map((t,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,background:"#fff",borderRadius:12,padding:"9px 12px",boxShadow:"0 1px 4px rgba(0,0,0,.05)",borderLeft:`3px solid ${t.col}`}}>
+                <span style={{fontSize:17,flexShrink:0}}>{t.i}</span>
+                <span style={{fontSize:12,color:"#1F2937",fontWeight:500,lineHeight:1.4}}>{t.t}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-// ── Shared UI ──────────────────────────────────────────────────────────────
-const IS={width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #D1FAE5",background:"#fff",fontSize:14,color:"#1F2937",boxSizing:"border-box",fontFamily:"inherit"};
-const BS={padding:"12px 16px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#16A34A,#14532D)",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",boxShadow:"0 3px 10px rgba(20,83,45,.25)"};
+// ── Shared UI Primitives ───────────────────────────────────────────────────
+const IS={width:"100%",padding:"11px 14px",borderRadius:12,border:"1.5px solid #E5E7EB",background:"#fff",fontSize:14,color:"#1F2937",boxSizing:"border-box",fontFamily:"inherit",outline:"none"};
+const BS={padding:"13px 18px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#16A34A,#0F3D1F)",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 14px rgba(15,61,31,.28)"};
+
+function SectionLabel({children,accent="#16A34A"}){
+  return<div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:"uppercase",color:accent,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>{children}</div>;
+}
 
 function Toast({msg,type}){
   const bg=type==="success"?"#16A34A":type==="info"?"#D97706":"#DC2626";
-  return<div style={{position:"fixed",top:14,left:"50%",transform:"translateX(-50%)",zIndex:999,background:bg,color:"#fff",borderRadius:12,padding:"10px 20px",fontSize:13,fontWeight:600,boxShadow:"0 4px 16px rgba(0,0,0,.2)",whiteSpace:"nowrap"}}>{msg}</div>;
+  return<div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:999,background:bg,color:"#fff",borderRadius:14,padding:"11px 22px",fontSize:13,fontWeight:600,boxShadow:"0 6px 24px rgba(0,0,0,.18)",whiteSpace:"nowrap"}}>{msg}</div>;
 }
 
 function Modal({title,onClose,children}){
   return(
-    <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(2px)"}}>
-      <div style={{background:"#F9FAFB",width:"100%",maxWidth:480,borderRadius:"22px 22px 0 0",maxHeight:"92vh",overflowY:"auto",padding:"20px 18px 44px",animation:"slideUp .25s ease"}}>
-        <div style={{width:36,height:4,background:"#D1D5DB",borderRadius:99,margin:"0 auto 18px"}}/>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
-          <h3 style={{margin:0,fontSize:18,fontWeight:800,color:"#111827"}}>{title}</h3>
-          <button onClick={onClose} style={{background:"#F3F4F6",border:"none",borderRadius:50,width:30,height:30,cursor:"pointer",fontSize:15,color:"#6B7280"}}>✕</button>
+    <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(3px)"}}>
+      <div style={{background:"#F8FAF8",width:"100%",maxWidth:480,borderRadius:"24px 24px 0 0",maxHeight:"92vh",overflowY:"auto",padding:"20px 18px 48px",animation:"slideUp .28s cubic-bezier(.34,1.56,.64,1)"}}>
+        <div style={{width:40,height:4,background:"#D1D5DB",borderRadius:99,margin:"0 auto 20px"}}/>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <h3 style={{margin:0,fontSize:19,fontWeight:800,color:"#111827"}}>{title}</h3>
+          <button onClick={onClose} style={{background:"#F3F4F6",border:"none",borderRadius:50,width:32,height:32,cursor:"pointer",fontSize:15,color:"#6B7280",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
         </div>
         {children}
       </div>
@@ -216,34 +275,32 @@ function Modal({title,onClose,children}){
 
 function Field({label,children,style}){
   return(
-    <div style={{marginBottom:12,...style}}>
-      <label style={{display:"block",fontSize:11,fontWeight:700,color:"#374151",marginBottom:4,textTransform:"uppercase",letterSpacing:.5}}>{label}</label>
+    <div style={{marginBottom:14,...style}}>
+      <label style={{display:"block",fontSize:11,fontWeight:700,color:"#374151",marginBottom:5,textTransform:"uppercase",letterSpacing:.6}}>{label}</label>
       {children}
     </div>
   );
 }
 
 function TeamPicker({value,onChange}){
-  return(
-    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-      {TEAM.map(n=><button key={n} onClick={()=>onChange(n)} style={{padding:"7px 14px",borderRadius:99,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,background:value===n?"#14532D":"#F3F4F6",color:value===n?"#fff":"#6B7280"}}>{n}</button>)}
-    </div>
-  );
+  return<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{TEAM.map(n=><button key={n} onClick={()=>onChange(n)} style={{padding:"8px 16px",borderRadius:99,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:value===n?"#0F3D1F":"#F3F4F6",color:value===n?"#fff":"#6B7280",transition:"all .15s"}}>{n}</button>)}</div>;
 }
 
+// ── GrowthBar Premium ──────────────────────────────────────────────────────
 function GrowthBar({planted,harvest}){
   const t=today(),total=dBetween(planted,harvest),elapsed=dBetween(planted,t);
   const pct=Math.min(100,Math.max(0,(elapsed/total)*100)),od=elapsed>total;
+  const dLeft=Math.max(0,total-elapsed);
   return(
     <div>
-      <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#6B7280",marginBottom:4}}>
-        <span>{fmt(planted)}</span>
-        <span style={{color:od?"#DC2626":"#374151",fontWeight:od?700:500}}>{od?"⚠ Overdue":`${Math.max(0,total-elapsed)}d to harvest`}</span>
+      <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#6B7280",marginBottom:5}}>
+        <span>Planted {fmtShort(planted)}</span>
+        <span style={{color:od?"#DC2626":"#374151",fontWeight:od?700:500}}>{od?"⚠ Overdue":`${dLeft} days left`}</span>
       </div>
-      <div style={{background:"#E5E7EB",borderRadius:99,height:8,overflow:"hidden"}}>
-        <div style={{width:`${pct}%`,height:"100%",borderRadius:99,background:od?"#DC2626":"linear-gradient(90deg,#22C55E,#F59E0B)"}}/>
+      <div style={{background:"#E5E7EB",borderRadius:99,height:9,overflow:"hidden",position:"relative"}}>
+        <div style={{width:`${pct}%`,height:"100%",borderRadius:99,background:od?"linear-gradient(90deg,#DC2626,#EF4444)":"linear-gradient(90deg,#22C55E,#C8963A)",boxShadow:od?"none":"0 0 8px rgba(34,197,94,.4)",transition:"width .5s ease"}}/>
       </div>
-      <div style={{fontSize:10,color:"#9CA3AF",marginTop:3}}>Harvest: {fmt(harvest)}</div>
+      <div style={{fontSize:10,color:"#9CA3AF",marginTop:4}}>Target harvest: {fmtShort(harvest)}</div>
     </div>
   );
 }
@@ -251,11 +308,10 @@ function GrowthBar({planted,harvest}){
 function FeedBar({dOld}){
   return(
     <div>
-      <div style={{display:"flex",gap:2,borderRadius:8,overflow:"hidden",height:18,marginBottom:5}}>
+      <div style={{display:"flex",gap:2,borderRadius:99,overflow:"hidden",height:16,marginBottom:5}}>
         {FP.map((p,i)=>{
-          const w=((p.dayEnd-p.dayStart+1)/42*100)+"%";
-          const active=dOld>=p.dayStart-1&&dOld<=p.dayEnd,done=dOld>p.dayEnd;
-          return<div key={i} style={{width:w,background:done||active?p.color:"#E5E7EB",opacity:active?1:done?.6:.35,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:9,fontWeight:700,color:done||active?"#fff":"#9CA3AF"}}>{p.short}</span></div>;
+          const w=((p.dayEnd-p.dayStart+1)/42*100)+"%",active=dOld>=p.dayStart-1&&dOld<=p.dayEnd,done=dOld>p.dayEnd;
+          return<div key={i} style={{width:w,background:done||active?p.color:"#E5E7EB",opacity:active?1:done?.55:.3,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .3s"}}><span style={{fontSize:8,fontWeight:700,color:done||active?"#fff":"#9CA3AF",letterSpacing:.5}}>{p.short}</span></div>;
         })}
       </div>
       <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#9CA3AF"}}><span>Day 1</span><span>Day 14</span><span>Day 28</span><span>Day 42</span></div>
@@ -263,32 +319,25 @@ function FeedBar({dOld}){
   );
 }
 
-// ── Fert Schedule Component ────────────────────────────────────────────────
 function FertSchedule({batch,logs,onLog}){
   const sched=FERT[batch.crop]||[];
   const weeksOld=wBetween(batch.planted,today());
   return(
-    <div style={{marginTop:10}}>
-      <div style={{fontSize:11,fontWeight:700,color:"#374151",textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>🧪 Fertilization Schedule</div>
-      {sched.map((s)=>{
-        const isDue=weeksOld>=s.week;
-        const isLogged=logs.some(l=>l.batchId===batch.id&&l.fertId===s.id);
-        const daysUntil=(s.week*7)-dBetween(batch.planted,today());
-        const isOD=isDue&&!isLogged;
+    <div style={{marginTop:12}}>
+      <SectionLabel accent="#7C3AED">🧪 Fertilization Schedule</SectionLabel>
+      {sched.map(s=>{
+        const isDue=weeksOld>=s.week,isLogged=logs.some(l=>l.batchId===batch.id&&l.fertId===s.id);
+        const daysUntil=(s.week*7)-dBetween(batch.planted,today()),isOD=isDue&&!isLogged;
         return(
-          <div key={s.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:10,marginBottom:6,background:isLogged?"#F0FDF4":isOD?"#FEF2F2":"#F9FAFB",border:`1px solid ${isLogged?"#BBF7D0":isOD?"#FECACA":"#E5E7EB"}`}}>
-            <div style={{width:26,height:26,borderRadius:7,background:isLogged?"#16A34A":isOD?"#DC2626":"#E5E7EB",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:12}}>
-              {isLogged?"✓":isOD?"!":"📅"}
-            </div>
-            <div style={{flex:1,minWidth:0}}>
+          <div key={s.id} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:12,marginBottom:7,background:isLogged?"#F0FDF4":isOD?"#FEF2F2":"#F9FAFB",border:`1.5px solid ${isLogged?"#BBF7D0":isOD?"#FECACA":"#F3F4F6"}`}}>
+            <div style={{width:28,height:28,borderRadius:8,background:isLogged?"#16A34A":isOD?"#DC2626":"#E5E7EB",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:13}}>{isLogged?"✓":isOD?"!":"📅"}</div>
+            <div style={{flex:1}}>
               <div style={{fontSize:12,fontWeight:700,color:"#1F2937"}}>{s.name}</div>
               <div style={{fontSize:11,color:"#6B7280"}}>{s.purpose} · {s.rate}</div>
-              <div style={{fontSize:10,color:isOD?"#DC2626":isDue?"#16A34A":"#9CA3AF",fontWeight:600,marginTop:1}}>
-                {isLogged?"✓ Done":isOD?"Overdue!":daysUntil<=7&&daysUntil>0?`Due in ${daysUntil}d`:`Week ${s.week}`}
-              </div>
+              <div style={{fontSize:10,color:isOD?"#DC2626":isDue?"#16A34A":"#9CA3AF",fontWeight:600,marginTop:1}}>{isLogged?"✓ Done":isOD?"Overdue!":daysUntil<=7&&daysUntil>0?`Due in ${daysUntil}d`:`Week ${s.week}`}</div>
             </div>
-            <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:99,background:s.type==="Basal"?"#EDE9FE":"#E0F2FE",color:s.type==="Basal"?"#7C3AED":"#0284C7",flexShrink:0}}>{s.type}</span>
-            {!isLogged&&isDue&&<button onClick={()=>onLog(batch.id,s.id,s.name)} style={{background:"#14532D",color:"#fff",border:"none",borderRadius:8,padding:"5px 9px",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0}}>Log</button>}
+            <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99,background:s.type==="Basal"?"#EDE9FE":"#E0F2FE",color:s.type==="Basal"?"#7C3AED":"#0284C7",flexShrink:0}}>{s.type}</span>
+            {!isLogged&&isDue&&<button onClick={()=>onLog(batch.id,s.id,s.name)} style={{background:"#0F3D1F",color:"#fff",border:"none",borderRadius:9,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0}}>Log</button>}
           </div>
         );
       })}
@@ -296,7 +345,7 @@ function FertSchedule({batch,logs,onLog}){
   );
 }
 
-// ── Crop Card ─────────────────────────────────────────────────────────────
+// ── CropCard (own component to use useState) ───────────────────────────────
 function CropCard({b,events,fertLogs,onLogEvent,onLogFert}){
   const[showFert,setShowFert]=useState(false);
   const meta=CM[b.crop]||{};
@@ -304,29 +353,32 @@ function CropCard({b,events,fertLogs,onLogEvent,onLogFert}){
   const lastW=bEvt.filter(e=>e.type==="irrigation").sort((a,z)=>z.date>a.date?1:-1)[0];
   const harvested=bEvt.filter(e=>e.type==="harvest").reduce((s,e)=>s+(parseFloat(e.quantity)||0),0);
   return(
-    <div className="fade" style={{background:"#fff",borderRadius:16,padding:14,marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.06)",borderLeft:`4px solid ${meta.color||"#16A34A"}`}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-        <div>
-          <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
-            <span style={{fontSize:20}}>{meta.icon}</span>
-            <span style={{fontSize:15,fontWeight:700,color:"#111827"}}>{b.crop}</span>
-            {b.variety&&<span style={{fontSize:11,color:"#9CA3AF"}}>({b.variety})</span>}
+    <div className="fade" style={{background:"#fff",borderRadius:20,overflow:"hidden",marginBottom:14,boxShadow:"0 4px 20px rgba(0,0,0,.07)"}}>
+      {/* Coloured top strip */}
+      <div style={{background:meta.grad||"#16A34A",padding:"12px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:24,filter:"drop-shadow(0 2px 4px rgba(0,0,0,.2))"}}>{meta.icon}</span>
+          <div>
+            <div style={{fontSize:15,fontWeight:800,color:"#fff",letterSpacing:.2}}>{b.crop}</div>
+            {b.variety&&<div style={{fontSize:11,color:"rgba(255,255,255,.75)"}}>{b.variety}</div>}
           </div>
-          {b.bed&&<span style={{display:"inline-flex",alignItems:"center",gap:3,background:meta.bg,borderRadius:99,padding:"2px 9px",fontSize:11,color:meta.color,fontWeight:600}}>📍{b.bed}{b.area?` · ${b.area}m²`:""}</span>}
         </div>
-        <button onClick={()=>onLogEvent(b.id)} style={{background:"#F0FDF4",color:"#16A34A",border:"1.5px solid #BBF7D0",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>Log →</button>
+        <button onClick={()=>onLogEvent(b.id)} style={{background:"rgba(255,255,255,.2)",color:"#fff",border:"1px solid rgba(255,255,255,.3)",borderRadius:10,padding:"6px 12px",fontSize:12,fontWeight:700,cursor:"pointer",backdropFilter:"blur(4px)"}}>Log →</button>
       </div>
-      <GrowthBar planted={b.planted} harvest={b.harvest}/>
-      <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
-        {lastW?<span style={{color:"#2563EB",background:"#EFF6FF",borderRadius:99,padding:"2px 9px",fontSize:11,fontWeight:600}}>💧{fmt(lastW.date)}</span>
-          :<span style={{color:"#D97706",background:"#FFFBEB",borderRadius:99,padding:"2px 9px",fontSize:11,fontWeight:600}}>💧Not watered</span>}
-        {harvested>0&&<span style={{color:"#D97706",background:"#FFFBEB",borderRadius:99,padding:"2px 9px",fontSize:11,fontWeight:600}}>⚖️{harvested}kg</span>}
-        <span style={{color:"#6B7280",background:"#F3F4F6",borderRadius:99,padding:"2px 9px",fontSize:11}}>🔄{b.irrigation}</span>
+      {/* Body */}
+      <div style={{padding:"12px 14px"}}>
+        {b.bed&&<div style={{display:"inline-flex",alignItems:"center",gap:4,background:meta.bg,borderRadius:99,padding:"3px 10px",fontSize:11,color:meta.color,fontWeight:700,marginBottom:10}}>📍 {b.bed}{b.area?` · ${b.area}m²`:""}</div>}
+        <GrowthBar planted={b.planted} harvest={b.harvest}/>
+        <div style={{display:"flex",gap:7,marginTop:10,flexWrap:"wrap"}}>
+          {lastW?<span style={{color:"#2563EB",background:"#EFF6FF",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:600}}>💧{fmtShort(lastW.date)}</span>:<span style={{color:"#D97706",background:"#FFFBEB",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:600}}>💧Not watered</span>}
+          {harvested>0&&<span style={{color:"#D97706",background:"#FFFBEB",borderRadius:99,padding:"3px 10px",fontSize:11,fontWeight:600}}>⚖️{harvested}kg</span>}
+          <span style={{color:"#6B7280",background:"#F3F4F6",borderRadius:99,padding:"3px 10px",fontSize:11}}>🔄{b.irrigation}</span>
+        </div>
+        <button onClick={()=>setShowFert(x=>!x)} style={{marginTop:10,width:"100%",padding:"8px",borderRadius:11,border:`1.5px dashed ${showFert?"#7C3AED":"#C4B5FD"}`,background:showFert?"#F5F3FF":"transparent",color:"#7C3AED",fontSize:12,fontWeight:700,cursor:"pointer",transition:"all .2s"}}>
+          {showFert?"▲ Hide":"🧪 Fertilization Schedule"}
+        </button>
+        {showFert&&<FertSchedule batch={b} logs={fertLogs} onLog={onLogFert}/>}
       </div>
-      <button onClick={()=>setShowFert(x=>!x)} style={{marginTop:10,width:"100%",padding:"7px",borderRadius:10,border:"1px dashed #BBF7D0",background:showFert?"#F0FDF4":"transparent",color:"#14532D",fontSize:12,fontWeight:600,cursor:"pointer"}}>
-        {showFert?"▲ Hide Fert Schedule":"🧪 View Fertilization Schedule"}
-      </button>
-      {showFert&&<FertSchedule batch={b} logs={fertLogs} onLog={onLogFert}/>}
     </div>
   );
 }
@@ -339,68 +391,46 @@ function ChickenDetail({b,onBack,onUpdateMortality}){
   const calc=calcBatch(localB);
   const{dOld,alive,phases,feedCost,chickCost,totalCost,revenue,profit,cp,dlp,mortalityPct}=calc;
   const profitable=profit>=0;
-  const handleMortSave=async()=>{
-    setSaving(true);
-    await onUpdateMortality(b.id,parseInt(mort)||0);
-    setLocalB(x=>({...x,mortality:parseInt(mort)||0}));
-    setSaving(false);
-  };
   return(
     <div>
-      <button onClick={onBack} style={{background:"#F3F4F6",border:"none",borderRadius:10,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",color:"#374151",marginBottom:14}}>← All Batches</button>
-      <div style={{background:"#fff",borderRadius:16,padding:16,boxShadow:"0 2px 8px rgba(0,0,0,.06)",marginBottom:12}}>
-        <div style={{fontSize:17,fontWeight:800,color:"#111827",marginBottom:2}}>🐔 {b.name||"Chicken Batch"}</div>
-        <div style={{fontSize:12,color:"#9CA3AF",marginBottom:14}}>Started {fmt(b.startDate)} · {b.numBirds} birds · {alive} alive · {mortalityPct}% mortality</div>
-        <div style={{marginBottom:14}}>
-          <div style={{fontSize:11,fontWeight:700,color:"#374151",textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>Feed Program · Day {dOld}</div>
-          <FeedBar dOld={dOld}/>
+      <button onClick={onBack} style={{background:"#F3F4F6",border:"none",borderRadius:12,padding:"9px 16px",fontSize:13,fontWeight:600,cursor:"pointer",color:"#374151",marginBottom:16}}>← All Batches</button>
+      <div style={{background:"#fff",borderRadius:20,overflow:"hidden",boxShadow:"0 4px 20px rgba(0,0,0,.07)",marginBottom:14}}>
+        <div style={{background:"linear-gradient(135deg,#78350F,#92400E)",padding:"16px 16px",color:"#fff"}}>
+          <div style={{fontSize:17,fontWeight:800}}>🐔 {b.name||"Chicken Batch"}</div>
+          <div style={{fontSize:12,opacity:.75,marginTop:4}}>Started {fmt(b.startDate)} · {b.numBirds} birds · {alive} alive · {mortalityPct}% mortality</div>
         </div>
-        <div style={{background:cp.bg,borderRadius:12,padding:12,border:`1.5px solid ${cp.color}`,marginBottom:12}}>
-          <div style={{fontSize:14,fontWeight:800,color:cp.tc}}>🌾 Current: {cp.name}</div>
-          <div style={{fontSize:12,color:cp.tc,opacity:.85,marginTop:2}}>{cp.weekLabel} · {cp.protein} protein · {cp.gpb}g/bird/day</div>
-          <div style={{fontSize:12,color:cp.tc,marginTop:3,fontStyle:"italic"}}>{cp.desc}</div>
-          {dlp>=0&&dlp<=3&&(
-            <div style={{marginTop:10,background:"#DC2626",borderRadius:8,padding:"8px 12px",color:"#fff",fontSize:12,fontWeight:700}}>
-              ⚡ Switch to {FP[cp.id+1]?.name||"Slaughter"} {dlp===0?"TODAY!":dlp===1?"TOMORROW!": `in ${dlp} days!`}
-            </div>
-          )}
-        </div>
-        <div style={{display:"flex",gap:6,marginBottom:14}}>
-          {FP.map((p,i)=>{
-            const done=dOld>p.dayEnd,active=cp.id===i;
-            return(
+        <div style={{padding:"14px 16px"}}>
+          <div style={{marginBottom:14}}><SectionLabel>Feed Program · Day {dOld}</SectionLabel><FeedBar dOld={dOld}/></div>
+          <div style={{background:cp.bg,borderRadius:14,padding:12,border:`1.5px solid ${cp.color}`,marginBottom:12}}>
+            <div style={{fontSize:14,fontWeight:800,color:cp.tc}}>🌾 Current: {cp.name}</div>
+            <div style={{fontSize:12,color:cp.tc,opacity:.85,marginTop:2}}>{cp.weekLabel} · {cp.protein} protein · {cp.gpb}g/bird/day</div>
+            <div style={{fontSize:12,color:cp.tc,marginTop:3,fontStyle:"italic"}}>{cp.desc}</div>
+            {dlp>=0&&dlp<=3&&<div style={{marginTop:10,background:"#DC2626",borderRadius:9,padding:"8px 12px",color:"#fff",fontSize:12,fontWeight:800}}>⚡ Switch to {FP[cp.id+1]?.name||"Slaughter"} {dlp===0?"TODAY!":dlp===1?"TOMORROW!":`in ${dlp} days!`}</div>}
+          </div>
+          <div style={{display:"flex",gap:6,marginBottom:14}}>
+            {FP.map((p,i)=>{const done=dOld>p.dayEnd,active=cp.id===i;return(
               <div key={i} style={{flex:1,background:done||active?p.bg:"#F9FAFB",borderRadius:12,padding:"10px 6px",textAlign:"center",border:`1.5px solid ${done||active?p.color:"#E5E7EB"}`}}>
                 <div style={{fontSize:10,color:done||active?p.tc:"#9CA3AF",fontWeight:700,textTransform:"uppercase",letterSpacing:.5,marginBottom:3}}>{p.short}</div>
                 <div style={{fontSize:12,fontWeight:700,color:done||active?p.tc:"#9CA3AF"}}>{phases[i].kg.toFixed(1)}kg</div>
                 <div style={{fontSize:10,color:"#9CA3AF"}}>{$(phases[i].cost)}</div>
-                {done&&<div style={{fontSize:10,color:p.color,fontWeight:700,marginTop:2}}>✓ Done</div>}
-                {active&&<div style={{fontSize:10,color:p.color,fontWeight:700,marginTop:2}}>● Active</div>}
+                {done&&<div style={{fontSize:9,color:p.color,fontWeight:700,marginTop:2}}>✓ Done</div>}
+                {active&&<div style={{fontSize:9,color:p.color,fontWeight:700,marginTop:2}}>● Active</div>}
               </div>
-            );
-          })}
-        </div>
-        <div style={{background:"#F9FAFB",borderRadius:12,padding:12,marginBottom:14}}>
-          <div style={{fontSize:11,fontWeight:700,color:"#374151",textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>📝 Update Mortality</div>
-          <div style={{display:"flex",gap:8}}>
-            <input type="number" value={mort} onChange={e=>setMort(e.target.value)} style={{...IS,flex:1}} placeholder="Birds lost"/>
-            <button onClick={handleMortSave} disabled={saving} style={{...BS,padding:"10px 16px",opacity:saving?.7:1}}>{saving?"…":"Save"}</button>
+            );})}
           </div>
-        </div>
-        <div style={{background:profitable?"#F0FDF4":"#FEF2F2",borderRadius:14,padding:14,border:`1.5px solid ${profitable?"#BBF7D0":"#FECACA"}`}}>
-          <div style={{fontSize:12,fontWeight:700,color:"#374151",textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>💰 Financial Summary</div>
-          {[
-            {l:"Chick cost",v:$(chickCost),s:`${b.numBirds} × ${$(b.costPerChick)}`},
-            {l:"Feed cost (to date)",v:$(feedCost),s:`${phases.reduce((s,p)=>s+p.kg,0).toFixed(1)}kg consumed`},
-            {l:"Other costs",v:$(b.otherCosts||0),s:"Meds, bedding, power"},
-            {l:"Total cost",v:$(totalCost),bold:true},
-            {l:"Expected revenue",v:$(revenue),s:`${alive} birds × ${b.avgWeight}kg × ${$(b.salePrice)}/kg`,col:"#16A34A"},
-            {l:`Projected ${profitable?"profit":"loss"}`,v:$(Math.abs(profit)),bold:true,col:profitable?"#16A34A":"#DC2626"},
-          ].map((r,i)=>(
-            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8,paddingBottom:8,borderBottom:i<5?"1px solid rgba(0,0,0,.05)":"none"}}>
-              <div><div style={{fontSize:13,color:r.col||"#374151",fontWeight:r.bold?700:400}}>{r.l}</div>{r.s&&<div style={{fontSize:11,color:"#9CA3AF"}}>{r.s}</div>}</div>
-              <div style={{fontSize:13,fontWeight:r.bold?800:600,color:r.col||"#1F2937"}}>{r.v}</div>
-            </div>
-          ))}
+          <div style={{background:"#F9FAFB",borderRadius:12,padding:12,marginBottom:14}}>
+            <SectionLabel>📝 Update Mortality</SectionLabel>
+            <div style={{display:"flex",gap:8}}><input type="number" value={mort} onChange={e=>setMort(e.target.value)} style={{...IS,flex:1}} placeholder="Birds lost"/><button onClick={async()=>{setSaving(true);await onUpdateMortality(b.id,parseInt(mort)||0);setLocalB(x=>({...x,mortality:parseInt(mort)||0}));setSaving(false);}} disabled={saving} style={{...BS,padding:"11px 16px",opacity:saving?.7:1}}>{saving?"…":"Save"}</button></div>
+          </div>
+          <div style={{background:profitable?"#F0FDF4":"#FEF2F2",borderRadius:16,padding:16,border:`1.5px solid ${profitable?"#BBF7D0":"#FECACA"}`}}>
+            <SectionLabel accent={profitable?"#16A34A":"#DC2626"}>💰 Financial Summary</SectionLabel>
+            {[{l:"Chick cost",v:$(chickCost),s:`${b.numBirds} × ${$(b.costPerChick)}`},{l:"Feed cost to date",v:$(feedCost),s:`${phases.reduce((s,p)=>s+p.kg,0).toFixed(1)}kg consumed`},{l:"Other costs",v:$(b.otherCosts||0),s:"Meds, bedding, power"},{l:"Total cost",v:$(totalCost),bold:true},{l:"Expected revenue",v:$(revenue),s:`${alive} × ${b.avgWeight}kg × ${$(b.salePrice)}/kg`,col:"#16A34A"},{l:`Projected ${profitable?"profit":"loss"}`,v:$(Math.abs(profit)),bold:true,col:profitable?"#16A34A":"#DC2626"}].map((r,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:9,paddingBottom:9,borderBottom:i<5?"1px solid rgba(0,0,0,.05)":"none"}}>
+                <div><div style={{fontSize:13,color:r.col||"#374151",fontWeight:r.bold?700:400}}>{r.l}</div>{r.s&&<div style={{fontSize:11,color:"#9CA3AF"}}>{r.s}</div>}</div>
+                <div style={{fontSize:13,fontWeight:r.bold?800:600,color:r.col||"#1F2937"}}>{r.v}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -411,21 +441,18 @@ function ChickenDetail({b,onBack,onUpdateMortality}){
 function AddBatchModal({onSave,onClose}){
   const[f,setF]=useState({crop:"Spinach",variety:"",bed:"",planted:today(),harvest:"",area:"",irrigation:"Every 2 days",notes:"",logged_by:""});
   const set=(k,v)=>setF(x=>({...x,[k]:v}));
-  useEffect(()=>{const d=CM[f.crop]?.days;if(d&&f.planted){const h=new Date(f.planted);h.setDate(h.getDate()+d);set("harvest",h.toISOString().split("T")[0]);}}, [f.crop,f.planted]);
+  useEffect(()=>{const d=CM[f.crop]?.days;if(d&&f.planted){const h=new Date(f.planted);h.setDate(h.getDate()+d);set("harvest",h.toISOString().split("T")[0]);}},[f.crop,f.planted]);
   return(
     <Modal title="🌱 New Crop Batch" onClose={onClose}>
-      <Field label="Crop"><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{CROPS.map(c=>{const m=CM[c];return<button key={c} onClick={()=>set("crop",c)} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 11px",borderRadius:10,border:`2px solid ${f.crop===c?m.color:"#E5E7EB"}`,background:f.crop===c?m.bg:"#fff",color:f.crop===c?m.color:"#6B7280",fontSize:12,fontWeight:600,cursor:"pointer"}}><span>{m.icon}</span>{c}</button>;})}</div></Field>
-      <Field label="Variety"><input value={f.variety} onChange={e=>set("variety",e.target.value)} placeholder="e.g. F1, Local" style={IS}/></Field>
-      <Field label="Bed / Plot"><input value={f.bed} onChange={e=>set("bed",e.target.value)} placeholder="e.g. Bed A3" style={IS}/></Field>
-      <div style={{display:"flex",gap:8}}>
-        <Field label="Planted" style={{flex:1}}><input type="date" value={f.planted} onChange={e=>set("planted",e.target.value)} style={IS}/></Field>
-        <Field label="Harvest" style={{flex:1}}><input type="date" value={f.harvest} onChange={e=>set("harvest",e.target.value)} style={IS}/></Field>
-      </div>
-      <Field label="Area (m²)"><input type="number" value={f.area} onChange={e=>set("area",e.target.value)} placeholder="50" style={IS}/></Field>
+      <Field label="Crop"><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{CROPS.map(c=>{const m=CM[c];return<button key={c} onClick={()=>set("crop",c)} style={{display:"flex",alignItems:"center",gap:5,padding:"8px 12px",borderRadius:12,border:`2px solid ${f.crop===c?m.color:"#E5E7EB"}`,background:f.crop===c?m.bg:"#fff",color:f.crop===c?m.color:"#6B7280",fontSize:12,fontWeight:700,cursor:"pointer"}}><span style={{fontSize:16}}>{m.icon}</span>{c}</button>;})}</div></Field>
+      <Field label="Variety"><input value={f.variety} onChange={e=>set("variety",e.target.value)} placeholder="e.g. F1, Local seed" style={IS}/></Field>
+      <Field label="Bed / Plot"><input value={f.bed} onChange={e=>set("bed",e.target.value)} placeholder="e.g. Bed A3, North block" style={IS}/></Field>
+      <div style={{display:"flex",gap:8}}><Field label="Planted" style={{flex:1}}><input type="date" value={f.planted} onChange={e=>set("planted",e.target.value)} style={IS}/></Field><Field label="Harvest" style={{flex:1}}><input type="date" value={f.harvest} onChange={e=>set("harvest",e.target.value)} style={IS}/></Field></div>
+      <Field label="Area (m²)"><input type="number" value={f.area} onChange={e=>set("area",e.target.value)} placeholder="e.g. 50" style={IS}/></Field>
       <Field label="Irrigation"><select value={f.irrigation} onChange={e=>set("irrigation",e.target.value)} style={IS}>{IRR.map(o=><option key={o}>{o}</option>)}</select></Field>
       <Field label="Added by"><TeamPicker value={f.logged_by} onChange={v=>set("logged_by",v)}/></Field>
       <Field label="Notes"><textarea value={f.notes} onChange={e=>set("notes",e.target.value)} rows={2} style={{...IS,resize:"vertical"}}/></Field>
-      <button onClick={()=>f.planted&&f.harvest&&onSave(f)} style={{...BS,width:"100%",marginTop:8}}>Save Crop Batch</button>
+      <button onClick={()=>f.planted&&f.harvest&&onSave(f)} style={{...BS,width:"100%",marginTop:10}}>Save Crop Batch</button>
     </Modal>
   );
 }
@@ -437,21 +464,21 @@ function AddEventModal({batches,defaultId,onSave,onClose}){
     <Modal title="📋 Log Crop Activity" onClose={onClose}>
       <Field label="Crop Batch"><select value={f.batchId} onChange={e=>set("batchId",e.target.value)} style={IS}>{batches.map(b=><option key={b.id} value={b.id}>{CM[b.crop]?.icon} {b.crop}{b.bed?` · ${b.bed}`:""}</option>)}</select></Field>
       <Field label="Activity">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:7}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
           {[{t:"irrigation",l:"💧",label:"Water"},{t:"fertilizer",l:"🌿",label:"Feed"},{t:"harvest",l:"⚖️",label:"Harvest"},{t:"note",l:"📝",label:"Note"}].map(({t,l,label})=>(
-            <button key={t} onClick={()=>set("type",t)} style={{padding:"10px 4px",borderRadius:11,border:`2px solid ${f.type===t?"#14532D":"#E5E7EB"}`,background:f.type===t?"#F0FDF4":"#fff",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-              <span style={{fontSize:20}}>{l}</span><span style={{fontSize:11,fontWeight:600,color:f.type===t?"#14532D":"#6B7280"}}>{label}</span>
+            <button key={t} onClick={()=>set("type",t)} style={{padding:"11px 4px",borderRadius:12,border:`2px solid ${f.type===t?"#0F3D1F":"#E5E7EB"}`,background:f.type===t?"#F0FDF4":"#fff",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+              <span style={{fontSize:22}}>{l}</span><span style={{fontSize:11,fontWeight:700,color:f.type===t?"#0F3D1F":"#6B7280"}}>{label}</span>
             </button>
           ))}
         </div>
       </Field>
       <Field label="Date"><input type="date" value={f.date} onChange={e=>set("date",e.target.value)} style={IS}/></Field>
       {f.type==="irrigation"&&<div style={{display:"flex",gap:8}}><Field label="Duration (min)" style={{flex:1}}><input type="number" value={f.duration} onChange={e=>set("duration",e.target.value)} placeholder="30" style={IS}/></Field><Field label="Amount (L)" style={{flex:1}}><input type="number" value={f.amount} onChange={e=>set("amount",e.target.value)} placeholder="200" style={IS}/></Field></div>}
-      {f.type==="fertilizer"&&<><Field label="Product"><input value={f.product} onChange={e=>set("product",e.target.value)} placeholder="e.g. Compound C, Urea, AN" style={IS}/></Field><div style={{display:"flex",gap:8}}><Field label="Amount" style={{flex:2}}><input type="number" value={f.quantity} onChange={e=>set("quantity",e.target.value)} style={IS}/></Field><Field label="Unit" style={{flex:1}}><select value={f.unit} onChange={e=>set("unit",e.target.value)} style={IS}>{["kg","g","L","ml","bags"].map(u=><option key={u}>{u}</option>)}</select></Field></div></>}
+      {f.type==="fertilizer"&&<><Field label="Product"><input value={f.product} onChange={e=>set("product",e.target.value)} placeholder="e.g. Compound C, AN" style={IS}/></Field><div style={{display:"flex",gap:8}}><Field label="Amount" style={{flex:2}}><input type="number" value={f.quantity} onChange={e=>set("quantity",e.target.value)} style={IS}/></Field><Field label="Unit" style={{flex:1}}><select value={f.unit} onChange={e=>set("unit",e.target.value)} style={IS}>{["kg","g","L","ml","bags"].map(u=><option key={u}>{u}</option>)}</select></Field></div></>}
       {f.type==="harvest"&&<div style={{display:"flex",gap:8}}><Field label="Quantity" style={{flex:2}}><input type="number" value={f.quantity} onChange={e=>set("quantity",e.target.value)} placeholder="25" style={IS}/></Field><Field label="Unit" style={{flex:1}}><select value={f.unit} onChange={e=>set("unit",e.target.value)} style={IS}>{["kg","bunches","heads","crates","bags"].map(u=><option key={u}>{u}</option>)}</select></Field></div>}
       <Field label="Logged by"><TeamPicker value={f.logged_by} onChange={v=>set("logged_by",v)}/></Field>
       <Field label="Notes"><textarea value={f.notes} onChange={e=>set("notes",e.target.value)} rows={2} style={{...IS,resize:"vertical"}}/></Field>
-      <button onClick={()=>f.batchId&&onSave(f)} style={{...BS,width:"100%",marginTop:8}}>Save</button>
+      <button onClick={()=>f.batchId&&onSave(f)} style={{...BS,width:"100%",marginTop:10}}>Save</button>
     </Modal>
   );
 }
@@ -462,32 +489,19 @@ function AddChickenModal({onSave,onClose}){
   return(
     <Modal title="🐔 New Chicken Batch" onClose={onClose}>
       <Field label="Batch Name"><input value={f.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Batch 1 · June 2026" style={IS}/></Field>
-      <div style={{display:"flex",gap:8}}>
-        <Field label="Start Date" style={{flex:1}}><input type="date" value={f.startDate} onChange={e=>set("startDate",e.target.value)} style={IS}/></Field>
-        <Field label="No. of Birds" style={{flex:1}}><input type="number" value={f.numBirds} onChange={e=>set("numBirds",parseInt(e.target.value)||0)} style={IS}/></Field>
+      <div style={{display:"flex",gap:8}}><Field label="Start Date" style={{flex:1}}><input type="date" value={f.startDate} onChange={e=>set("startDate",e.target.value)} style={IS}/></Field><Field label="No. of Birds" style={{flex:1}}><input type="number" value={f.numBirds} onChange={e=>set("numBirds",parseInt(e.target.value)||0)} style={IS}/></Field></div>
+      <div style={{background:"linear-gradient(135deg,#F0FDF4,#DCFCE7)",borderRadius:14,padding:14,marginBottom:12,border:"1px solid #BBF7D0"}}>
+        <SectionLabel accent="#16A34A">💰 Costs (USD)</SectionLabel>
+        <div style={{display:"flex",gap:8,marginBottom:10}}><Field label="Per Chick ($)" style={{flex:1}}><input type="number" step=".01" value={f.costPerChick} onChange={e=>set("costPerChick",parseFloat(e.target.value)||0)} style={IS}/></Field><Field label="Other Costs ($)" style={{flex:1}}><input type="number" value={f.otherCosts} onChange={e=>set("otherCosts",parseFloat(e.target.value)||0)} placeholder="Meds, bedding" style={IS}/></Field></div>
+        <SectionLabel accent="#16A34A">Feed Price ($ / 50kg bag)</SectionLabel>
+        <div style={{display:"flex",gap:6}}>{[{k:"priceStarter",l:"Starter 🟡",col:"#F59E0B"},{k:"priceGrower",l:"Grower 🟢",col:"#10B981"},{k:"priceFinisher",l:"Finisher 🟠",col:"#F97316"}].map(({k,l,col})=><Field key={k} label={l} style={{flex:1}}><input type="number" value={f[k]} onChange={e=>set(k,parseFloat(e.target.value)||0)} style={{...IS,borderColor:col+"88"}}/></Field>)}</div>
       </div>
-      <div style={{background:"#F0FDF4",borderRadius:12,padding:12,marginBottom:10}}>
-        <div style={{fontSize:11,fontWeight:700,color:"#14532D",marginBottom:8,textTransform:"uppercase",letterSpacing:.5}}>💰 Costs (USD)</div>
-        <div style={{display:"flex",gap:8,marginBottom:8}}>
-          <Field label="Per Chick ($)" style={{flex:1}}><input type="number" step=".01" value={f.costPerChick} onChange={e=>set("costPerChick",parseFloat(e.target.value)||0)} style={IS}/></Field>
-          <Field label="Other Costs ($)" style={{flex:1}}><input type="number" value={f.otherCosts} onChange={e=>set("otherCosts",parseFloat(e.target.value)||0)} placeholder="Meds, bedding" style={IS}/></Field>
-        </div>
-        <div style={{fontSize:11,fontWeight:700,color:"#14532D",marginBottom:6,textTransform:"uppercase",letterSpacing:.5}}>Feed Price ($ per 50kg bag)</div>
-        <div style={{display:"flex",gap:6}}>
-          {[{k:"priceStarter",l:"Starter",col:"#F59E0B"},{k:"priceGrower",l:"Grower",col:"#10B981"},{k:"priceFinisher",l:"Finisher",col:"#F97316"}].map(({k,l,col})=>(
-            <Field key={k} label={l} style={{flex:1}}><input type="number" value={f[k]} onChange={e=>set(k,parseFloat(e.target.value)||0)} style={{...IS,borderColor:col+"66"}}/></Field>
-          ))}
-        </div>
-      </div>
-      <div style={{background:"#EFF6FF",borderRadius:12,padding:12,marginBottom:10}}>
-        <div style={{fontSize:11,fontWeight:700,color:"#2563EB",marginBottom:8,textTransform:"uppercase",letterSpacing:.5}}>📈 Revenue Estimate</div>
-        <div style={{display:"flex",gap:8}}>
-          <Field label="Avg Weight (kg)" style={{flex:1}}><input type="number" step=".1" value={f.avgWeight} onChange={e=>set("avgWeight",parseFloat(e.target.value)||0)} style={IS}/></Field>
-          <Field label="Sale Price ($/kg)" style={{flex:1}}><input type="number" step=".1" value={f.salePrice} onChange={e=>set("salePrice",parseFloat(e.target.value)||0)} style={IS}/></Field>
-        </div>
+      <div style={{background:"linear-gradient(135deg,#EFF6FF,#DBEAFE)",borderRadius:14,padding:14,marginBottom:12,border:"1px solid #BFDBFE"}}>
+        <SectionLabel accent="#2563EB">📈 Revenue Estimate</SectionLabel>
+        <div style={{display:"flex",gap:8}}><Field label="Avg Weight (kg)" style={{flex:1}}><input type="number" step=".1" value={f.avgWeight} onChange={e=>set("avgWeight",parseFloat(e.target.value)||0)} style={IS}/></Field><Field label="Sale Price ($/kg)" style={{flex:1}}><input type="number" step=".1" value={f.salePrice} onChange={e=>set("salePrice",parseFloat(e.target.value)||0)} style={IS}/></Field></div>
       </div>
       <Field label="Added by"><TeamPicker value={f.loggedBy} onChange={v=>set("loggedBy",v)}/></Field>
-      <button onClick={()=>f.numBirds&&onSave(f)} style={{...BS,width:"100%",marginTop:8}}>Save Chicken Batch</button>
+      <button onClick={()=>f.numBirds&&onSave(f)} style={{...BS,width:"100%",marginTop:10}}>Save Chicken Batch</button>
     </Modal>
   );
 }
@@ -498,85 +512,154 @@ function AddTaskModal({onSave,onClose}){
   return(
     <Modal title="✅ New Task" onClose={onClose}>
       <Field label="Task"><input value={f.title} onChange={e=>set("title",e.target.value)} placeholder="e.g. Check tomatoes for pests" style={IS}/></Field>
-      <div style={{display:"flex",gap:8}}>
-        <Field label="Due Date" style={{flex:1}}><input type="date" value={f.dueDate} onChange={e=>set("dueDate",e.target.value)} style={IS}/></Field>
-        <Field label="Priority" style={{flex:1}}><select value={f.priority} onChange={e=>set("priority",e.target.value)} style={IS}>{["High","Medium","Low"].map(p=><option key={p}>{p}</option>)}</select></Field>
-      </div>
+      <div style={{display:"flex",gap:8}}><Field label="Due Date" style={{flex:1}}><input type="date" value={f.dueDate} onChange={e=>set("dueDate",e.target.value)} style={IS}/></Field><Field label="Priority" style={{flex:1}}><select value={f.priority} onChange={e=>set("priority",e.target.value)} style={IS}>{["High","Medium","Low"].map(p=><option key={p}>{p}</option>)}</select></Field></div>
       <Field label="Category">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:7}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
           {[{v:"General",e:"📋"},{v:"Crops",e:"🌱"},{v:"Chickens",e:"🐔"},{v:"Maintenance",e:"🔧"}].map(({v,e})=>(
-            <button key={v} onClick={()=>set("category",v)} style={{padding:"9px 4px",borderRadius:10,border:`2px solid ${f.category===v?"#14532D":"#E5E7EB"}`,background:f.category===v?"#F0FDF4":"#fff",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-              <span style={{fontSize:18}}>{e}</span><span style={{fontSize:11,fontWeight:600,color:f.category===v?"#14532D":"#6B7280"}}>{v}</span>
+            <button key={v} onClick={()=>set("category",v)} style={{padding:"10px 4px",borderRadius:12,border:`2px solid ${f.category===v?"#0F3D1F":"#E5E7EB"}`,background:f.category===v?"#F0FDF4":"#fff",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+              <span style={{fontSize:18}}>{e}</span><span style={{fontSize:11,fontWeight:700,color:f.category===v?"#0F3D1F":"#6B7280"}}>{v}</span>
             </button>
           ))}
         </div>
       </Field>
       <Field label="Assign to"><TeamPicker value={f.assignedTo} onChange={v=>set("assignedTo",v)}/></Field>
       <Field label="Notes"><textarea value={f.notes} onChange={e=>set("notes",e.target.value)} rows={2} style={{...IS,resize:"vertical"}}/></Field>
-      <button onClick={()=>f.title&&onSave(f)} style={{...BS,width:"100%",marginTop:8}}>Save Task</button>
+      <button onClick={()=>f.title&&onSave(f)} style={{...BS,width:"100%",marginTop:10}}>Save Task</button>
     </Modal>
   );
 }
 
-// ── Tabs ───────────────────────────────────────────────────────────────────
-function DashboardTab({batches,cBatches,tasks,fertLogs,events}){
-  const upcoming=batches.filter(b=>{const d=dBetween(today(),b.harvest);return d>=0&&d<=14;}).sort((a,b)=>a.harvest>b.harvest?1:-1);
-  const overdueTasks=tasks.filter(t=>!t.completed&&t.dueDate&&dBetween(t.dueDate,today())>0);
-  const todayTasks=tasks.filter(t=>!t.completed&&t.dueDate===today());
-  const activeCk=cBatches.filter(b=>!b.sold);
-  const totalKg=events.filter(e=>e.type==="harvest").reduce((s,e)=>s+(parseFloat(e.quantity)||0),0);
+// ── TASK OVERVIEW (for dashboard) ─────────────────────────────────────────
+function TaskOverview({tasks,onToggle,onAddTask}){
+  const pending=tasks.filter(t=>!t.completed);
+  const od=pending.filter(t=>t.dueDate&&dBetween(t.dueDate,today())>0);
+  const dueToday=pending.filter(t=>t.dueDate===today());
+  const upcoming=pending.filter(t=>t.dueDate&&dBetween(today(),t.dueDate)>=1&&dBetween(today(),t.dueDate)<=7);
+  const pBg={High:"#FEF2F2",Medium:"#FFFBEB",Low:"#F0FDF4"},pCol={High:"#DC2626",Medium:"#D97706",Low:"#16A34A"};
+  const catI={Crops:"🌱",Chickens:"🐔",Maintenance:"🔧",General:"📋"};
+  const show=[...od,...dueToday,...upcoming].slice(0,5);
   return(
-    <div>
-      <h2 style={{margin:"0 0 14px",fontSize:18,fontWeight:800,color:"#111827"}}>Overview</h2>
-      <WeatherWidget/>
-      <div style={{display:"flex",gap:8,marginBottom:14}}>
-        {[{i:"🌱",l:"Crops",v:batches.length,col:"#14532D",bg:"#F0FDF4"},{i:"🐔",l:"Chickens",v:activeCk.length,col:"#D97706",bg:"#FFFBEB"},{i:"⚖️",l:"Kg Harvested",v:totalKg.toFixed(1),col:"#2563EB",bg:"#EFF6FF"}].map(s=>(
-          <div key={s.l} style={{flex:1,background:s.bg,borderRadius:14,padding:"12px 8px",textAlign:"center",boxShadow:"0 2px 6px rgba(0,0,0,.05)"}}>
-            <div style={{fontSize:20,marginBottom:4}}>{s.i}</div>
-            <div style={{fontSize:22,fontWeight:800,color:s.col,lineHeight:1}}>{s.v}</div>
-            <div style={{fontSize:10,color:s.col,fontWeight:600,marginTop:3,opacity:.8}}>{s.l}</div>
-          </div>
-        ))}
-      </div>
-      {overdueTasks.length>0&&(
-        <div style={{background:"#FEF2F2",border:"1.5px solid #FECACA",borderRadius:14,padding:14,marginBottom:12}}>
-          <div style={{fontSize:12,fontWeight:700,color:"#DC2626",marginBottom:6}}>⚠ {overdueTasks.length} Overdue Task{overdueTasks.length>1?"s":""}</div>
-          {overdueTasks.slice(0,3).map(t=><div key={t.id} style={{fontSize:13,color:"#991B1B",marginBottom:3,fontWeight:500}}>· {t.title}{t.assignedTo?` (${t.assignedTo})`:""}</div>)}
+    <div style={{background:"#fff",borderRadius:20,overflow:"hidden",marginBottom:16,boxShadow:"0 4px 20px rgba(0,0,0,.07)"}}>
+      <div style={{background:"linear-gradient(135deg,#1E3A5F,#2563EB)",padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"rgba(255,255,255,.6)",marginBottom:3}}>Task Manager</div>
+          <div style={{fontSize:16,fontWeight:800,color:"#fff"}}>✅ Tasks</div>
         </div>
-      )}
-      {upcoming.length>0&&(
-        <div style={{background:"#FFFBEB",border:"1.5px solid #FCD34D",borderRadius:14,padding:14,marginBottom:12}}>
-          <div style={{fontSize:12,fontWeight:700,color:"#92400E",marginBottom:8}}>🗓 Harvest Due Within 2 Weeks</div>
-          {upcoming.map(b=>(
-            <div key={b.id} style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"#374151",marginBottom:4}}>
-              <span>{CM[b.crop]?.icon} {b.crop}{b.bed?` · ${b.bed}`:""}</span>
-              <span style={{fontWeight:700,color:"#D97706"}}>{fmt(b.harvest)}</span>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {od.length>0&&<div style={{background:"#DC2626",borderRadius:99,padding:"3px 10px",fontSize:12,fontWeight:700,color:"#fff"}}>{od.length} overdue</div>}
+          <button onClick={onAddTask} style={{background:"rgba(255,255,255,.2)",border:"1px solid rgba(255,255,255,.3)",borderRadius:10,padding:"6px 12px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>+ Add</button>
+        </div>
+      </div>
+      {show.length===0?(
+        <div style={{padding:"24px 16px",textAlign:"center",color:"#9CA3AF"}}>
+          <div style={{fontSize:32,marginBottom:8}}>🎉</div>
+          <div style={{fontSize:13,fontWeight:600,color:"#6B7280"}}>All caught up! No pending tasks.</div>
+        </div>
+      ):(
+        <div style={{padding:"10px 14px 14px"}}>
+          {od.length>0&&(
+            <div style={{background:"#FEF2F2",borderRadius:12,padding:"8px 12px",marginBottom:10,border:"1px solid #FECACA"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#DC2626",marginBottom:5}}>⚠ OVERDUE</div>
+              {od.map(t=>(
+                <div key={t.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                  <button onClick={()=>onToggle(t)} style={{width:20,height:20,borderRadius:5,border:"2px solid #DC2626",background:"#fff",cursor:"pointer",flexShrink:0}}/>
+                  <span style={{fontSize:12,color:"#991B1B",fontWeight:600,flex:1}}>{t.title}</span>
+                  {t.assignedTo&&<span style={{fontSize:10,color:"#DC2626",fontWeight:700}}>{t.assignedTo}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+          {dueToday.length>0&&(
+            <div style={{background:"#FFFBEB",borderRadius:12,padding:"8px 12px",marginBottom:10,border:"1px solid #FCD34D"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#D97706",marginBottom:5}}>📅 DUE TODAY</div>
+              {dueToday.map(t=>(
+                <div key={t.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                  <button onClick={()=>onToggle(t)} style={{width:20,height:20,borderRadius:5,border:"2px solid #D97706",background:"#fff",cursor:"pointer",flexShrink:0}}/>
+                  <span style={{fontSize:12,color:"#92400E",fontWeight:600,flex:1}}>{t.title}</span>
+                  {t.assignedTo&&<span style={{fontSize:10,color:"#D97706",fontWeight:700}}>{t.assignedTo}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+          {upcoming.slice(0,3).map(t=>(
+            <div key={t.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid #F3F4F6"}}>
+              <button onClick={()=>onToggle(t)} style={{width:22,height:22,borderRadius:6,border:"2px solid #D1D5DB",background:"#fff",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}/>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,color:"#1F2937",fontWeight:600}}>{t.title}</div>
+                <div style={{display:"flex",gap:5,marginTop:3}}>
+                  <span style={{fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:99,background:pBg[t.priority],color:pCol[t.priority]}}>{t.priority}</span>
+                  <span style={{fontSize:10,padding:"1px 6px",borderRadius:99,background:"#F3F4F6",color:"#6B7280"}}>{catI[t.category]||"📋"} {t.category}</span>
+                  {t.assignedTo&&<span style={{fontSize:10,padding:"1px 6px",borderRadius:99,background:"#F0FDF4",color:"#14532D",fontWeight:600}}>👤{t.assignedTo}</span>}
+                </div>
+              </div>
+              <span style={{fontSize:11,color:"#9CA3AF",whiteSpace:"nowrap"}}>{fmtShort(t.dueDate)}</span>
             </div>
           ))}
         </div>
       )}
-      {activeCk.map(b=>{
-        const{cp,dOld,dlp,alive}=calcBatch(b);
-        return(
-          <div key={b.id} style={{background:"#fff",borderRadius:14,padding:14,marginBottom:10,boxShadow:"0 2px 6px rgba(0,0,0,.06)",borderLeft:`4px solid ${cp.color}`}}>
-            <div style={{fontSize:13,fontWeight:700,color:"#1F2937",marginBottom:4}}>🐔 {b.name||"Chicken Batch"} <span style={{fontSize:11,color:"#9CA3AF",fontWeight:400}}>· Day {dOld} · {alive} alive</span></div>
-            <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:cp.bg,borderRadius:10,marginBottom:8}}>
-              <span style={{fontSize:16}}>🌾</span>
-              <div>
-                <div style={{fontSize:12,fontWeight:700,color:cp.tc}}>Current Feed: {cp.name}</div>
-                <div style={{fontSize:11,color:cp.tc,opacity:.8}}>{dlp>=0&&dlp<=3?`⚡ Switch ${dlp===0?"TODAY":dlp===1?"TOMORROW":`in ${dlp}d`}!`:`${cp.protein} protein · ${cp.gpb}g/bird/day`}</div>
+    </div>
+  );
+}
+
+// ── TABS ───────────────────────────────────────────────────────────────────
+function DashboardTab({batches,cBatches,tasks,fertLogs,events,onAddTask,onToggleTask}){
+  const upcoming=batches.filter(b=>{const d=dBetween(today(),b.harvest);return d>=0&&d<=14;}).sort((a,b)=>a.harvest>b.harvest?1:-1);
+  const activeCk=cBatches.filter(b=>!b.sold);
+  const totalKg=events.filter(e=>e.type==="harvest").reduce((s,e)=>s+(parseFloat(e.quantity)||0),0);
+  return(
+    <div>
+      {/* Header strip */}
+      <div style={{display:"flex",gap:8,marginBottom:14}}>
+        {[{i:"🌱",l:"Crops",v:batches.length,col:"#14532D",bg:"linear-gradient(135deg,#F0FDF4,#DCFCE7)",border:"#BBF7D0"},{i:"🐔",l:"Chickens",v:activeCk.length,col:"#92400E",bg:"linear-gradient(135deg,#FFFBEB,#FEF3C7)",border:"#FCD34D"},{i:"⚖️",l:"Harvested",v:`${totalKg.toFixed(0)}kg`,col:"#1D4ED8",bg:"linear-gradient(135deg,#EFF6FF,#DBEAFE)",border:"#BFDBFE"}].map(s=>(
+          <div key={s.l} style={{flex:1,background:s.bg,borderRadius:16,padding:"12px 8px",textAlign:"center",boxShadow:"0 2px 8px rgba(0,0,0,.06)",border:`1px solid ${s.border}`}}>
+            <div style={{fontSize:22,marginBottom:4}}>{s.i}</div>
+            <div style={{fontSize:22,fontWeight:900,color:s.col,lineHeight:1,letterSpacing:-1}}>{s.v}</div>
+            <div style={{fontSize:10,color:s.col,fontWeight:700,marginTop:3,opacity:.8,textTransform:"uppercase",letterSpacing:.5}}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+
+      <WeatherWidget/>
+
+      {/* Tasks section */}
+      <TaskOverview tasks={tasks} onToggle={onToggleTask} onAddTask={onAddTask}/>
+
+      {/* Upcoming harvests */}
+      {upcoming.length>0&&(
+        <div style={{background:"#fff",borderRadius:20,overflow:"hidden",marginBottom:14,boxShadow:"0 4px 20px rgba(0,0,0,.07)"}}>
+          <div style={{background:"linear-gradient(135deg,#78350F,#B45309)",padding:"12px 16px"}}>
+            <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"rgba(255,255,255,.6)",marginBottom:2}}>Crop Calendar</div>
+            <div style={{fontSize:16,fontWeight:800,color:"#fff"}}>🗓 Upcoming Harvests</div>
+          </div>
+          <div style={{padding:"10px 14px 14px"}}>
+            {upcoming.map(b=>(
+              <div key={b.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #F3F4F6"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:18}}>{CM[b.crop]?.icon}</span><div><div style={{fontSize:13,color:"#1F2937",fontWeight:600}}>{b.crop}{b.bed?` · ${b.bed}`:""}</div><div style={{fontSize:11,color:"#9CA3AF"}}>{dBetween(today(),b.harvest)}d remaining</div></div></div>
+                <span style={{fontSize:13,fontWeight:800,color:"#D97706",background:"#FFFBEB",padding:"4px 10px",borderRadius:99}}>{fmtShort(b.harvest)}</span>
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Active chickens */}
+      {activeCk.map(b=>{
+        const{cp,dOld,dlp,alive,profit}=calcBatch(b);
+        const profitable=profit>=0;
+        return(
+          <div key={b.id} style={{background:"#fff",borderRadius:20,overflow:"hidden",marginBottom:14,boxShadow:"0 4px 20px rgba(0,0,0,.07)"}}>
+            <div style={{background:"linear-gradient(135deg,#92400E,#B45309)",padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div><div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"rgba(255,255,255,.6)",marginBottom:2}}>Broiler Batch</div><div style={{fontSize:15,fontWeight:800,color:"#fff"}}>🐔 {b.name||"Chicken Batch"}</div></div>
+              <div style={{background:profitable?"rgba(34,197,94,.2)":"rgba(239,68,68,.2)",borderRadius:99,padding:"4px 10px",border:`1px solid ${profitable?"rgba(34,197,94,.4)":"rgba(239,68,68,.4)"}`}}><span style={{fontSize:12,fontWeight:700,color:profitable?"#86EFAC":"#FCA5A5"}}>{profitable?"📈":"📉"} {$(Math.abs(profit))}</span></div>
             </div>
-            <FeedBar dOld={dOld}/>
+            <div style={{padding:"12px 14px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10,fontSize:12,color:"#6B7280"}}><span>Day {dOld} · {b.numBirds} birds · {alive} alive</span><span style={{fontWeight:700,color:cp.tc}}>{cp.name}</span></div>
+              <FeedBar dOld={dOld}/>
+              {dlp>=0&&dlp<=3&&<div style={{marginTop:10,background:"linear-gradient(135deg,#DC2626,#EF4444)",borderRadius:10,padding:"8px 12px",color:"#fff",fontSize:12,fontWeight:800}}>⚡ Switch to {FP[cp.id+1]?.name||"Slaughter"} {dlp===0?"TODAY!":dlp===1?"TOMORROW!":`in ${dlp} days!`}</div>}
+            </div>
           </div>
         );
       })}
-      {todayTasks.length>0&&(
-        <div style={{background:"#fff",borderRadius:14,padding:14,marginBottom:10,boxShadow:"0 2px 6px rgba(0,0,0,.06)"}}>
-          <div style={{fontSize:12,fontWeight:700,color:"#2563EB",marginBottom:8}}>📋 Due Today</div>
-          {todayTasks.map(t=><div key={t.id} style={{fontSize:13,color:"#374151",marginBottom:4}}>· {t.title}{t.assignedTo?<span style={{color:"#14532D",fontWeight:600}}> ({t.assignedTo})</span>:null}</div>)}
-        </div>
-      )}
     </div>
   );
 }
@@ -585,11 +668,11 @@ function CropsTab({batches,events,fertLogs,onAddBatch,onLogEvent,onLogFert}){
   const sorted=[...batches].sort((a,b)=>a.planted>b.planted?-1:1);
   return(
     <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#111827"}}>Crops</h2>
-        <button onClick={onAddBatch} style={{background:"linear-gradient(135deg,#F59E0B,#D97706)",color:"#fff",border:"none",borderRadius:12,padding:"8px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ New Batch</button>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <h2 style={{margin:0,fontSize:20,fontWeight:800,color:"#111827",letterSpacing:-.5}}>🌱 Crops</h2>
+        <button onClick={onAddBatch} style={{background:"linear-gradient(135deg,#F59E0B,#D97706)",color:"#fff",border:"none",borderRadius:14,padding:"9px 16px",fontSize:13,fontWeight:700,cursor:"pointer",boxShadow:"0 3px 12px rgba(217,119,6,.3)"}}>+ New Batch</button>
       </div>
-      {sorted.length===0&&<div style={{textAlign:"center",padding:"48px 0",color:"#9CA3AF"}}><div style={{fontSize:44,marginBottom:12}}>🌱</div><div style={{fontSize:14,color:"#6B7280"}}>No crops yet</div></div>}
+      {sorted.length===0&&<div style={{textAlign:"center",padding:"60px 0",color:"#9CA3AF"}}><div style={{fontSize:52,marginBottom:14}}>🌱</div><div style={{fontSize:15,fontWeight:600,color:"#6B7280"}}>No crops yet</div></div>}
       {sorted.map(b=><CropCard key={b.id} b={b} events={events} fertLogs={fertLogs} onLogEvent={onLogEvent} onLogFert={onLogFert}/>)}
     </div>
   );
@@ -597,28 +680,30 @@ function CropsTab({batches,events,fertLogs,onAddBatch,onLogEvent,onLogFert}){
 
 function ChickensTab({cBatches,onAddBatch,onUpdateMortality}){
   const[sel,setSel]=useState(null);
-  if(sel){const b=cBatches.find(x=>x.id===sel);if(b)return<ChickenDetail b={b} onBack={()=>setSel(null)} onUpdateMortality={async(id,m)=>{await onUpdateMortality(id,m);}}/>;}
+  if(sel){const b=cBatches.find(x=>x.id===sel);if(b)return<ChickenDetail b={b} onBack={()=>setSel(null)} onUpdateMortality={onUpdateMortality}/>;}
   return(
     <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#111827"}}>Chickens</h2>
-        <button onClick={onAddBatch} style={{background:"linear-gradient(135deg,#F59E0B,#D97706)",color:"#fff",border:"none",borderRadius:12,padding:"8px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ New Batch</button>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <h2 style={{margin:0,fontSize:20,fontWeight:800,color:"#111827",letterSpacing:-.5}}>🐔 Chickens</h2>
+        <button onClick={onAddBatch} style={{background:"linear-gradient(135deg,#F59E0B,#D97706)",color:"#fff",border:"none",borderRadius:14,padding:"9px 16px",fontSize:13,fontWeight:700,cursor:"pointer",boxShadow:"0 3px 12px rgba(217,119,6,.3)"}}>+ New Batch</button>
       </div>
-      {cBatches.length===0&&<div style={{textAlign:"center",padding:"48px 0",color:"#9CA3AF"}}><div style={{fontSize:44,marginBottom:12}}>🐔</div><div style={{fontSize:14,color:"#6B7280"}}>No chicken batches yet</div></div>}
+      {cBatches.length===0&&<div style={{textAlign:"center",padding:"60px 0",color:"#9CA3AF"}}><div style={{fontSize:52,marginBottom:14}}>🐔</div><div style={{fontSize:15,fontWeight:600,color:"#6B7280"}}>No chicken batches yet</div></div>}
       {cBatches.map(b=>{
         const{dOld,alive,cp,dlp,profit,totalCost}=calcBatch(b);
         const profitable=profit>=0,switchSoon=dlp>=0&&dlp<=3;
         return(
-          <div key={b.id} onClick={()=>setSel(b.id)} className="fade" style={{background:"#fff",borderRadius:16,padding:14,marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.06)",cursor:"pointer",borderLeft:`4px solid ${cp.color}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-              <div><div style={{fontSize:15,fontWeight:700,color:"#111827"}}>🐔 {b.name||"Chicken Batch"}</div><div style={{fontSize:12,color:"#9CA3AF",marginTop:2}}>{b.numBirds} birds · Day {dOld} · {alive} alive</div></div>
-              <span style={{fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:99,background:cp.bg,color:cp.tc}}>{cp.short}</span>
+          <div key={b.id} onClick={()=>setSel(b.id)} className="fade" style={{background:"#fff",borderRadius:20,overflow:"hidden",marginBottom:14,boxShadow:"0 4px 20px rgba(0,0,0,.07)",cursor:"pointer"}}>
+            <div style={{background:"linear-gradient(135deg,#78350F,#92400E,#B45309)",padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div><div style={{fontSize:15,fontWeight:800,color:"#fff"}}>🐔 {b.name||"Chicken Batch"}</div><div style={{fontSize:11,color:"rgba(255,255,255,.7)",marginTop:2}}>{b.numBirds} birds · Day {dOld} · {alive} alive</div></div>
+              <span style={{fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:99,background:cp.bg,color:cp.tc}}>{cp.short}</span>
             </div>
-            <FeedBar dOld={dOld}/>
-            {switchSoon&&<div style={{marginTop:8,background:"#FEF3C7",borderRadius:8,padding:"7px 10px",border:"1px solid #FCD34D"}}><span style={{fontSize:12,fontWeight:700,color:"#92400E"}}>⚡ Switch to {FP[cp.id+1]?.name||"Slaughter"} {dlp===0?"TODAY!":dlp===1?"TOMORROW!":`in ${dlp}d!`}</span></div>}
-            <div style={{display:"flex",gap:8,marginTop:10}}>
-              <span style={{fontSize:12,fontWeight:600,padding:"3px 9px",borderRadius:99,background:profitable?"#F0FDF4":"#FEF2F2",color:profitable?"#16A34A":"#DC2626"}}>{profitable?"📈":"📉"} {$(Math.abs(profit))} {profitable?"profit":"loss"}</span>
-              <span style={{fontSize:12,color:"#6B7280",background:"#F3F4F6",borderRadius:99,padding:"3px 9px"}}>Cost: {$(totalCost)}</span>
+            <div style={{padding:"12px 14px"}}>
+              <FeedBar dOld={dOld}/>
+              {switchSoon&&<div style={{marginTop:8,background:"linear-gradient(135deg,#FEF3C7,#FFFBEB)",borderRadius:10,padding:"8px 12px",border:"1px solid #FCD34D"}}><span style={{fontSize:12,fontWeight:800,color:"#92400E"}}>⚡ Switch to {FP[cp.id+1]?.name} {dlp===0?"TODAY!":dlp===1?"TOMORROW!":`in ${dlp}d!`}</span></div>}
+              <div style={{display:"flex",gap:8,marginTop:10}}>
+                <span style={{fontSize:12,fontWeight:700,padding:"4px 11px",borderRadius:99,background:profitable?"#F0FDF4":"#FEF2F2",color:profitable?"#16A34A":"#DC2626"}}>{profitable?"📈":"📉"} {$(Math.abs(profit))} {profitable?"profit":"loss"}</span>
+                <span style={{fontSize:12,color:"#6B7280",background:"#F3F4F6",borderRadius:99,padding:"4px 11px"}}>Cost: {$(totalCost)}</span>
+              </div>
             </div>
           </div>
         );
@@ -636,29 +721,29 @@ function TasksTab({tasks,onAddTask,onToggle}){
   const od=t=>!t.completed&&t.dueDate&&dBetween(t.dueDate,today())>0;
   return(
     <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#111827"}}>Tasks</h2>
-        <button onClick={onAddTask} style={{background:"linear-gradient(135deg,#2563EB,#1D4ED8)",color:"#fff",border:"none",borderRadius:12,padding:"8px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ Task</button>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <h2 style={{margin:0,fontSize:20,fontWeight:800,color:"#111827",letterSpacing:-.5}}>✅ Tasks</h2>
+        <button onClick={onAddTask} style={{background:"linear-gradient(135deg,#2563EB,#1D4ED8)",color:"#fff",border:"none",borderRadius:14,padding:"9px 16px",fontSize:13,fontWeight:700,cursor:"pointer",boxShadow:"0 3px 12px rgba(37,99,235,.3)"}}>+ Task</button>
       </div>
-      <div style={{display:"flex",gap:6,marginBottom:14}}>
+      <div style={{display:"flex",gap:7,marginBottom:16}}>
         {[{k:"pending",l:"Pending"},{k:"done",l:"Done"},{k:"all",l:"All"}].map(({k,l})=>(
-          <button key={k} onClick={()=>setFilter(k)} style={{padding:"6px 14px",borderRadius:99,fontSize:12,fontWeight:600,border:"none",cursor:"pointer",background:filter===k?"#1D4ED8":"#E5E7EB",color:filter===k?"#fff":"#6B7280"}}>{l}</button>
+          <button key={k} onClick={()=>setFilter(k)} style={{padding:"7px 16px",borderRadius:99,fontSize:12,fontWeight:700,border:"none",cursor:"pointer",background:filter===k?"#1D4ED8":"#E5E7EB",color:filter===k?"#fff":"#6B7280",boxShadow:filter===k?"0 2px 8px rgba(29,78,216,.25)":"none"}}>{l}</button>
         ))}
       </div>
-      {filtered.length===0&&<div style={{textAlign:"center",padding:"40px 0",color:"#9CA3AF",fontSize:13}}>No tasks here</div>}
+      {filtered.length===0&&<div style={{textAlign:"center",padding:"48px 0",color:"#9CA3AF",fontSize:13}}>No tasks here</div>}
       {filtered.map(t=>(
-        <div key={t.id} className="fade" style={{background:t.completed?"#F9FAFB":"#fff",borderRadius:14,padding:14,marginBottom:10,boxShadow:"0 2px 6px rgba(0,0,0,.05)",opacity:t.completed?.65:1,border:od(t)?"1.5px solid #FECACA":"1px solid transparent"}}>
+        <div key={t.id} className="fade" style={{background:t.completed?"#F9FAFB":"#fff",borderRadius:16,padding:14,marginBottom:10,boxShadow:t.completed?"none":"0 3px 14px rgba(0,0,0,.06)",opacity:t.completed?.6:1,border:od(t)?"1.5px solid #FECACA":"1.5px solid transparent",transition:"all .2s"}}>
           <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
-            <button onClick={()=>onToggle(t.id)} style={{width:24,height:24,borderRadius:6,border:`2px solid ${t.completed?"#16A34A":"#D1D5DB"}`,background:t.completed?"#16A34A":"#fff",cursor:"pointer",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:700}}>
+            <button onClick={()=>onToggle(t)} style={{width:24,height:24,borderRadius:7,border:`2px solid ${t.completed?"#16A34A":"#D1D5DB"}`,background:t.completed?"#16A34A":"#fff",cursor:"pointer",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:900,transition:"all .15s"}}>
               {t.completed?"✓":""}
             </button>
             <div style={{flex:1}}>
-              <div style={{fontSize:14,fontWeight:600,color:t.completed?"#9CA3AF":"#111827",textDecoration:t.completed?"line-through":"none",marginBottom:5}}>{t.title}</div>
+              <div style={{fontSize:14,fontWeight:600,color:t.completed?"#9CA3AF":"#111827",textDecoration:t.completed?"line-through":"none",marginBottom:6,letterSpacing:.1}}>{t.title}</div>
               <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:99,background:pBg[t.priority],color:pCol[t.priority]}}>{t.priority}</span>
-                <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:"#F3F4F6",color:"#6B7280"}}>{catI[t.category]||"📋"} {t.category}</span>
-                {t.assignedTo&&<span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:"#F0FDF4",color:"#14532D",fontWeight:600}}>👤{t.assignedTo}</span>}
-                {t.dueDate&&<span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:od(t)?"#FEF2F2":"#F3F4F6",color:od(t)?"#DC2626":"#6B7280",fontWeight:od(t)?700:400}}>{od(t)?"⚠ ":""}{fmt(t.dueDate)}</span>}
+                <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99,background:pBg[t.priority],color:pCol[t.priority]}}>{t.priority}</span>
+                <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:"#F3F4F6",color:"#6B7280"}}>{catI[t.category]||"📋"} {t.category}</span>
+                {t.assignedTo&&<span style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:"#F0FDF4",color:"#14532D",fontWeight:700}}>👤{t.assignedTo}</span>}
+                {t.dueDate&&<span style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:od(t)?"#FEF2F2":"#F3F4F6",color:od(t)?"#DC2626":"#6B7280",fontWeight:od(t)?700:400}}>{od(t)?"⚠ ":""}{fmtShort(t.dueDate)}</span>}
               </div>
               {t.notes&&<div style={{fontSize:11,color:"#9CA3AF",marginTop:5,fontStyle:"italic"}}>{t.notes}</div>}
             </div>
@@ -669,7 +754,7 @@ function TasksTab({tasks,onAddTask,onToggle}){
   );
 }
 
-// ── App ────────────────────────────────────────────────────────────────────
+// ── MAIN APP ───────────────────────────────────────────────────────────────
 function App(){
   const[tab,setTab]=useState("dashboard");
   const[batches,setBatches]=useState([]);
@@ -699,14 +784,11 @@ function App(){
         sb.from("chicken_batches").select("*").order("created_at",{ascending:false}),
         sb.from("tasks").select("*").order("created_at",{ascending:false}),
       ]);
-      if(be||ee||fe||ce||te)throw new Error("Fetch error");
-      setBatches((b||[]).map(nB));
-      setEvents((e||[]).map(nE));
-      setFertLogs((f||[]).map(nF));
-      setCBatches((c||[]).map(nC));
-      setTasks((t||[]).map(nT));
+      if(be||ee||ce||te)throw new Error("Fetch error");
+      setBatches((b||[]).map(nB));setEvents((e||[]).map(nE));
+      setFertLogs((f||[]).map(nF));setCBatches((c||[]).map(nC));setTasks((t||[]).map(nT));
       setLastSync(new Date());
-    }catch(err){showToast("Sync failed — check connection","error");}
+    }catch{showToast("Sync failed — check connection","error");}
     finally{setSyncing(false);setLoading(false);}
   },[]);
 
@@ -714,7 +796,7 @@ function App(){
     fetchAll();
     const onVis=()=>{if(document.visibilityState==="visible")fetchAll(true);};
     document.addEventListener("visibilitychange",onVis);
-    const ch=sb.channel("farm-v3")
+    const ch=sb.channel("farm-v4")
       .on("postgres_changes",{event:"*",schema:"public",table:"batches"},()=>fetchAll(true))
       .on("postgres_changes",{event:"*",schema:"public",table:"events"},()=>fetchAll(true))
       .on("postgres_changes",{event:"*",schema:"public",table:"fert_logs"},()=>fetchAll(true))
@@ -724,83 +806,72 @@ function App(){
     return()=>{document.removeEventListener("visibilitychange",onVis);sb.removeChannel(ch);};
   },[fetchAll]);
 
-  const addBatch=async f=>{
-    const{error}=await sb.from("batches").insert({...dB({...f,createdAt:undefined}),id:uid()});
-    if(error){showToast("Failed to save","error");return;}
-    setShowAddBatch(false);showToast("Crop batch saved ✓");fetchAll(true);
-  };
-  const addEvent=async f=>{
-    const{error}=await sb.from("events").insert({...dE({...f,createdAt:undefined}),id:uid()});
-    if(error){showToast("Failed to save","error");return;}
-    setShowAddEvent(false);setEvtBatchId(null);showToast("Activity logged ✓");fetchAll(true);
-  };
-  const addFertLog=async(batchId,fertId,name)=>{
-    const{error}=await sb.from("fert_logs").insert({id:uid(),batch_id:batchId,fert_id:fertId,name,date:today(),logged_by:""});
-    if(error){showToast("Failed to save","error");return;}
-    showToast(`${name} logged ✓`);fetchAll(true);
-  };
-  const addChicken=async f=>{
-    const{error}=await sb.from("chicken_batches").insert({...dC({...f,createdAt:undefined,id:uid()})});
-    if(error){showToast("Failed to save","error");return;}
-    setShowAddChicken(false);showToast("Chicken batch saved ✓");fetchAll(true);
-  };
-  const updateMortality=async(id,mortality)=>{
-    const{error}=await sb.from("chicken_batches").update({mortality}).eq("id",id);
-    if(error){showToast("Failed to update","error");return;}
-    showToast("Mortality updated ✓");fetchAll(true);
-  };
+  const addBatch=async f=>{const{error}=await sb.from("batches").insert({...dB({...f,createdAt:undefined}),id:uid()});if(error){showToast("Failed to save","error");return;}setShowAddBatch(false);showToast("Crop batch saved ✓");fetchAll(true);};
+  const addEvent=async f=>{const{error}=await sb.from("events").insert({...dE({...f,createdAt:undefined}),id:uid()});if(error){showToast("Failed to save","error");return;}setShowAddEvent(false);setEvtBatchId(null);showToast("Activity logged ✓");fetchAll(true);};
+  const addFertLog=async(batchId,fertId,name)=>{const{error}=await sb.from("fert_logs").insert({id:uid(),batch_id:batchId,fert_id:fertId,name,date:today(),logged_by:""});if(error){showToast("Failed to save","error");return;}showToast(`${name} logged ✓`);fetchAll(true);};
+  const addChicken=async f=>{const{error}=await sb.from("chicken_batches").insert({...dC({...f,createdAt:undefined,id:uid()})});if(error){showToast("Failed to save","error");return;}setShowAddChicken(false);showToast("Chicken batch saved ✓");fetchAll(true);};
+  const updateMortality=async(id,mortality)=>{const{error}=await sb.from("chicken_batches").update({mortality}).eq("id",id);if(error){showToast("Failed to update","error");return;}showToast("Updated ✓");fetchAll(true);};
   const addTask=async f=>{
-    const{error}=await sb.from("tasks").insert({...dT({...f,createdAt:undefined,completedDate:undefined}),id:uid(),completed:false});
-    if(error){showToast("Failed to save","error");return;}
+    const payload={id:uid(),title:f.title,due_date:f.dueDate||null,priority:f.priority||"Medium",category:f.category||"General",assigned_to:f.assignedTo||null,notes:f.notes||null,completed:false,completed_date:null};
+    const{error}=await sb.from("tasks").insert(payload);
+    if(error){showToast("Save failed: "+error.message,"error");return;}
     setShowAddTask(false);showToast("Task added ✓");fetchAll(true);
   };
-  const toggleTask=async t=>{
-    const{error}=await sb.from("tasks").update({completed:!t.completed,completed_date:!t.completed?today():null}).eq("id",t.id);
-    if(error){showToast("Failed to update","error");return;}
-    fetchAll(true);
-  };
+  const toggleTask=async t=>{const{error}=await sb.from("tasks").update({completed:!t.completed,completed_date:!t.completed?today():null}).eq("id",t.id);if(error){showToast("Failed","error");return;}fetchAll(true);};
 
   const fmtSync=()=>{if(!lastSync)return"";const m=Math.round((new Date()-lastSync)/60000);return m<1?"Just synced":`${m}m ago`;};
   const pendingTasks=tasks.filter(t=>!t.completed).length;
+  const overdueTasks=tasks.filter(t=>!t.completed&&t.dueDate&&dBetween(t.dueDate,today())>0).length;
 
   if(loading)return(
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",background:"linear-gradient(160deg,#14532D,#166534)",gap:16}}>
-      <div style={{fontSize:64,animation:"pulse 1.5s ease infinite"}}>🌱</div>
-      <div style={{color:"#fff",fontSize:18,fontWeight:700}}>Farm Manager</div>
-      <div style={{color:"rgba(255,255,255,.6)",fontSize:13}}>Loading your farm data…</div>
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",background:"linear-gradient(160deg,#0F3D1F,#166534)",gap:16}}>
+      <div style={{fontSize:70,animation:"pulse 1.5s ease infinite",filter:"drop-shadow(0 8px 20px rgba(0,0,0,.3))"}}>🌱</div>
+      <div style={{color:"#fff",fontSize:20,fontWeight:800,letterSpacing:-.5}}>Farm Manager</div>
+      <div style={{color:"rgba(255,255,255,.55)",fontSize:13}}>Ntabazinduna · Zimbabwe</div>
       <div style={{width:44,height:44,border:"3px solid rgba(255,255,255,.2)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin .8s linear infinite",marginTop:8}}/>
     </div>
   );
 
   return(
-    <div style={{fontFamily:"system-ui,-apple-system,sans-serif",background:"#F0F7F0",minHeight:"100vh",maxWidth:480,margin:"0 auto",paddingBottom:88}}>
+    <div style={{fontFamily:"system-ui,-apple-system,sans-serif",background:"#EEF5EE",minHeight:"100vh",maxWidth:480,margin:"0 auto",paddingBottom:90}}>
       {toast&&<Toast msg={toast.msg} type={toast.type}/>}
 
-      <div style={{background:"linear-gradient(135deg,#14532D,#166534)",color:"#fff",padding:"18px 16px 14px",boxShadow:"0 4px 16px rgba(20,83,45,.25)"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      {/* Header */}
+      <div style={{background:"linear-gradient(135deg,#0F3D1F 0%,#14532D 50%,#166534 100%)",color:"#fff",padding:"20px 16px 16px",boxShadow:"0 6px 24px rgba(15,61,31,.3)",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:-30,right:-30,width:160,height:160,borderRadius:"50%",background:"rgba(255,255,255,.04)"}}/>
+        <div style={{position:"absolute",bottom:-40,right:40,width:100,height:100,borderRadius:"50%",background:"rgba(255,255,255,.03)"}}/>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",position:"relative"}}>
           <div>
-            <div style={{fontSize:10,letterSpacing:3,textTransform:"uppercase",opacity:.6,marginBottom:3}}>📍 Ntabazinduna · Zimbabwe</div>
-            <div style={{fontSize:21,fontWeight:800,letterSpacing:-.5}}>🌱 Farm Manager</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,.65)",marginTop:3}}>Lincoln · Thandeka · Vuyi · Velile</div>
+            <div style={{fontSize:9,letterSpacing:3,textTransform:"uppercase",opacity:.55,marginBottom:4}}>📍 Ntabazinduna · Zimbabwe</div>
+            <div style={{fontSize:22,fontWeight:900,letterSpacing:-1}}>🌱 Farm Manager</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:4,letterSpacing:.2}}>Lincoln · Thandeka · Vuyi · Velile</div>
           </div>
-          <button onClick={()=>fetchAll()} style={{background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.2)",borderRadius:10,padding:"7px 12px",color:"#fff",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",gap:5}}>
-            <span className={syncing?"spin":""}style={{fontSize:14}}>↻</span>
-            <span style={{opacity:.85}}>{syncing?"Syncing…":fmtSync()}</span>
+          <button onClick={()=>fetchAll()} style={{background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.18)",borderRadius:12,padding:"8px 13px",color:"#fff",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",gap:5,backdropFilter:"blur(8px)"}}>
+            <span className={syncing?"spin":""}style={{fontSize:15}}>↻</span>
+            <span style={{opacity:.8}}>{syncing?"Syncing":fmtSync()}</span>
           </button>
         </div>
       </div>
 
       <div style={{padding:14}}>
-        {tab==="dashboard"&&<DashboardTab batches={batches} cBatches={cBatches} tasks={tasks} fertLogs={fertLogs} events={events}/>}
+        {tab==="dashboard"&&<DashboardTab batches={batches} cBatches={cBatches} tasks={tasks} fertLogs={fertLogs} events={events} onAddTask={()=>setShowAddTask(true)} onToggleTask={toggleTask}/>}
         {tab==="crops"&&<CropsTab batches={batches} events={events} fertLogs={fertLogs} onAddBatch={()=>setShowAddBatch(true)} onLogEvent={id=>{setEvtBatchId(id);setShowAddEvent(true);}} onLogFert={addFertLog}/>}
         {tab==="chickens"&&<ChickensTab cBatches={cBatches} onAddBatch={()=>setShowAddChicken(true)} onUpdateMortality={updateMortality}/>}
         {tab==="tasks"&&<TasksTab tasks={tasks} onAddTask={()=>setShowAddTask(true)} onToggle={toggleTask}/>}
       </div>
 
-      <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:480,background:"#fff",borderTop:"1px solid #E5E7EB",display:"flex",zIndex:100,boxShadow:"0 -4px 20px rgba(0,0,0,.08)"}}>
-        {[{key:"dashboard",icon:"📊",label:"Overview"},{key:"crops",icon:"🌱",label:"Crops"},{key:"chickens",icon:"🐔",label:"Chickens"},{key:"tasks",icon:"✅",label:`Tasks${pendingTasks>0?` (${pendingTasks})`:""}`}].map(t=>(
-          <button key={t.key} onClick={()=>setTab(t.key)} style={{flex:1,padding:"10px 0 8px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,color:tab===t.key?"#14532D":"#9CA3AF",fontWeight:tab===t.key?700:400,fontSize:10,borderTop:tab===t.key?"2.5px solid #14532D":"2.5px solid transparent"}}>
-            <span style={{fontSize:20}}>{t.icon}</span>{t.label}
+      {/* Bottom nav — frosted glass */}
+      <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:480,background:"rgba(255,255,255,.92)",borderTop:"1px solid rgba(0,0,0,.06)",display:"flex",zIndex:100,boxShadow:"0 -4px 24px rgba(0,0,0,.1)",backdropFilter:"blur(12px)"}}>
+        {[
+          {key:"dashboard",icon:"📊",label:"Overview"},
+          {key:"crops",icon:"🌱",label:"Crops"},
+          {key:"chickens",icon:"🐔",label:"Chickens"},
+          {key:"tasks",icon:"✅",label:`Tasks`,badge:overdueTasks>0?overdueTasks:pendingTasks>0?pendingTasks:0},
+        ].map(t=>(
+          <button key={t.key} onClick={()=>setTab(t.key)} style={{flex:1,padding:"10px 0 9px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,color:tab===t.key?"#0F3D1F":"#9CA3AF",fontWeight:tab===t.key?800:400,fontSize:10,borderTop:tab===t.key?"2.5px solid #0F3D1F":"2.5px solid transparent",transition:"all .15s",position:"relative"}}>
+            <span style={{fontSize:21}}>{t.icon}</span>
+            {t.label}
+            {t.badge>0&&<div style={{position:"absolute",top:6,right:"calc(50% - 18px)",width:16,height:16,borderRadius:99,background:overdueTasks>0?"#DC2626":"#F59E0B",color:"#fff",fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{t.badge}</div>}
           </button>
         ))}
       </div>
