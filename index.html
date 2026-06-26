@@ -74,7 +74,7 @@ const dBetween=(a,b)=>Math.round((new Date(b)-new Date(a))/86400000);
 const wBetween=(a,b)=>Math.floor(dBetween(a,b)/7);
 const fmt=d=>d?new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}):"—";
 const fmtShort=d=>d?new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"—";
-const uid=()=>Math.random().toString(36).slice(2,11);
+const uid=()=>crypto.randomUUID?crypto.randomUUID():"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c=="x"?r:(r&0x3|0x8);return v.toString(16);});
 const $=n=>`$${(+n||0).toFixed(2)}`;
 const DAYS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const fmtH=h=>h===0?"12am":h<12?`${h}am`:h===12?"12pm":`${h-12}pm`;
