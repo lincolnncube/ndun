@@ -48,7 +48,7 @@ const nC=c=>({...c,startDate:c.start_date,numBirds:c.num_birds,costPerChick:c.co
 const dC=({startDate,numBirds,costPerChick,priceStarter,priceGrower,priceFinisher,avgWeight,salePrice,otherCosts,loggedBy,createdAt,...c})=>({...c,start_date:startDate,num_birds:numBirds,cost_per_chick:costPerChick,price_starter:priceStarter,price_grower:priceGrower,price_finisher:priceFinisher,avg_weight:avgWeight,sale_price:salePrice,other_costs:otherCosts,logged_by:loggedBy});
 const nT=t=>({...t,dueDate:t.due_date,assignedTo:t.assigned_to,completedDate:t.completed_date,createdAt:t.created_at});
 const nFL=f=>({...f,loggedBy:f.logged_by,createdAt:f.created_at});
-const nA=a=>({...a,purchaseValue:a.purchase_value,currentValue:a.current_value,purchaseDate:a.purchase_date,serialNumber:a.serial_number,createdAt:a.created_at});
+const nA=a=>({...a,purchaseValue:a.purchase_value,currentValue:a.current_value,purchaseDate:a.purchase_date,serialNumber:a.serial_number,lastServiced:a.last_serviced,nextService:a.next_service,serviceNotes:a.service_notes,createdAt:a.created_at});
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const CROPS=["Spinach","Cabbage","Kale","Red Onions","Tomatoes"];
@@ -374,9 +374,39 @@ function AddFinanceModal({onSave,onClose,defaultType}){
   return(<Modal title={f.type==="income"?"💰 Log Income":"💸 Log Expense"} onClose={onClose}><Field label="Type"><div style={{display:"flex",gap:8}}>{[{v:"income",l:"📈 Income"},{v:"expense",l:"📉 Expense"}].map(({v,l})=>(<button key={v} onClick={()=>set("type",v)} style={{flex:1,padding:"11px",borderRadius:12,border:`2px solid ${f.type===v?v==="income"?"#16A34A":"#DC2626":"#E5E7EB"}`,background:f.type===v?v==="income"?"#F0FDF4":"#FEF2F2":"#fff",color:f.type===v?v==="income"?"#14532D":"#DC2626":"#6B7280",fontWeight:700,fontSize:14,cursor:"pointer"}}>{l}</button>))}</div></Field><Field label="Category"><select value={f.category} onChange={e=>set("category",e.target.value)} style={IS}>{cats.map(c=><option key={c}>{c}</option>)}</select></Field><div style={{display:"flex",gap:8}}><Field label="Date" style={{flex:1}}><input type="date" value={f.date} onChange={e=>set("date",e.target.value)} style={IS}/></Field><Field label="Amount (USD $)" style={{flex:1}}><input type="number" step="0.01" value={f.amount} onChange={e=>set("amount",e.target.value)} placeholder="0.00" style={IS}/></Field></div><Field label="Description"><input value={f.description} onChange={e=>set("description",e.target.value)} placeholder="e.g. Sold 20kg spinach to market" style={IS}/></Field><Field label="Logged by"><TeamPicker value={f.logged_by} onChange={v=>set("logged_by",v)}/></Field><button onClick={()=>f.amount&&parseFloat(f.amount)>0&&onSave(f)} style={{...BS,width:"100%",marginTop:8,background:f.type==="income"?"linear-gradient(135deg,#16A34A,#14532D)":"linear-gradient(135deg,#DC2626,#991B1B)"}}>Save {f.type==="income"?"Income":"Expense"}</button></Modal>);
 }
 function AddAssetModal({onSave,onClose}){
-  const[f,setF]=useState({name:"",category:"Equipment",purchase_value:"",current_value:"",purchase_date:"",condition:"Good",serial_number:"",notes:""});
+  const[f,setF]=useState({name:"",category:"Equipment",purchase_value:"",current_value:"",purchase_date:"",condition:"Good",serial_number:"",last_serviced:"",next_service:"",service_notes:"",notes:""});
   const set=(k,v)=>setF(x=>({...x,[k]:v}));
-  return(<Modal title="🏷 Add Asset" onClose={onClose}><Field label="Asset Name"><input value={f.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Water Pump, Chicken House" style={IS}/></Field><Field label="Category"><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{[{v:"Equipment",e:"⚙️"},{v:"Tools",e:"🔧"},{v:"Infrastructure",e:"🏗"},{v:"Vehicles",e:"🚗"},{v:"Livestock (Breeding)",e:"🐄"},{v:"Other",e:"📦"}].map(({v,e})=>(<button key={v} onClick={()=>set("category",v)} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 10px",borderRadius:10,border:`2px solid ${f.category===v?"#0F3D1F":"#E5E7EB"}`,background:f.category===v?"#F0FDF4":"#fff",color:f.category===v?"#0F3D1F":"#6B7280",fontSize:12,fontWeight:600,cursor:"pointer"}}>{e} {v}</button>))}</div></Field><div style={{display:"flex",gap:8}}><Field label="Purchase Value ($)" style={{flex:1}}><input type="number" step="0.01" value={f.purchase_value} onChange={e=>set("purchase_value",e.target.value)} placeholder="0.00" style={IS}/></Field><Field label="Current Value ($)" style={{flex:1}}><input type="number" step="0.01" value={f.current_value} onChange={e=>set("current_value",e.target.value)} placeholder="0.00" style={IS}/></Field></div><div style={{display:"flex",gap:8}}><Field label="Purchase Date" style={{flex:1}}><input type="date" value={f.purchase_date} onChange={e=>set("purchase_date",e.target.value)} style={IS}/></Field><Field label="Condition" style={{flex:1}}><select value={f.condition} onChange={e=>set("condition",e.target.value)} style={IS}>{ASSET_COND.map(c=><option key={c}>{c}</option>)}</select></Field></div><Field label="Serial / Model No."><input value={f.serial_number} onChange={e=>set("serial_number",e.target.value)} placeholder="Optional" style={IS}/></Field><Field label="Notes"><textarea value={f.notes} onChange={e=>set("notes",e.target.value)} rows={2} style={{...IS,resize:"vertical"}}/></Field><button onClick={()=>f.name&&onSave(f)} style={{...BS,width:"100%",marginTop:8}}>Save Asset</button></Modal>);
+  return(
+    <Modal title="🏷 Add Asset" onClose={onClose}>
+      <Field label="Asset Name"><input value={f.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Water Pump, Chicken House, Generator" style={IS}/></Field>
+      <Field label="Category">
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {[{v:"Equipment",e:"⚙️"},{v:"Tools",e:"🔧"},{v:"Infrastructure",e:"🏗"},{v:"Vehicles",e:"🚗"},{v:"Livestock (Breeding)",e:"🐄"},{v:"Other",e:"📦"}].map(({v,e})=>(
+            <button key={v} onClick={()=>set("category",v)} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 10px",borderRadius:10,border:`2px solid ${f.category===v?"#0F3D1F":"#E5E7EB"}`,background:f.category===v?"#F0FDF4":"#fff",color:f.category===v?"#0F3D1F":"#6B7280",fontSize:12,fontWeight:600,cursor:"pointer"}}>{e} {v}</button>
+          ))}
+        </div>
+      </Field>
+      <div style={{display:"flex",gap:8}}>
+        <Field label="Purchase Value ($)" style={{flex:1}}><input type="number" step="0.01" value={f.purchase_value} onChange={e=>set("purchase_value",e.target.value)} placeholder="0.00" style={IS}/></Field>
+        <Field label="Current Value ($)" style={{flex:1}}><input type="number" step="0.01" value={f.current_value} onChange={e=>set("current_value",e.target.value)} placeholder="0.00" style={IS}/></Field>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <Field label="Date Purchased" style={{flex:1}}><input type="date" value={f.purchase_date} onChange={e=>set("purchase_date",e.target.value)} style={IS}/></Field>
+        <Field label="Condition" style={{flex:1}}><select value={f.condition} onChange={e=>set("condition",e.target.value)} style={IS}>{ASSET_COND.map(c=><option key={c}>{c}</option>)}</select></Field>
+      </div>
+      <Field label="Serial / Model Number"><input value={f.serial_number} onChange={e=>set("serial_number",e.target.value)} placeholder="Optional" style={IS}/></Field>
+      <div style={{background:"#EFF6FF",borderRadius:13,padding:12,marginBottom:2,border:"1px solid #BFDBFE"}}>
+        <div style={{fontSize:11,fontWeight:700,color:"#2563EB",marginBottom:8,textTransform:"uppercase",letterSpacing:.5}}>🔧 Service Tracking</div>
+        <div style={{display:"flex",gap:8}}>
+          <Field label="Last Serviced" style={{flex:1}}><input type="date" value={f.last_serviced} onChange={e=>set("last_serviced",e.target.value)} style={IS}/></Field>
+          <Field label="Next Service Due" style={{flex:1}}><input type="date" value={f.next_service} onChange={e=>set("next_service",e.target.value)} style={IS}/></Field>
+        </div>
+        <Field label="Service Notes"><input value={f.service_notes} onChange={e=>set("service_notes",e.target.value)} placeholder="e.g. Oil change, pump serviced" style={IS}/></Field>
+      </div>
+      <Field label="General Notes"><textarea value={f.notes} onChange={e=>set("notes",e.target.value)} rows={2} style={{...IS,resize:"vertical"}}/></Field>
+      <button onClick={()=>f.name&&onSave(f)} style={{...BS,width:"100%",marginTop:8}}>Save Asset</button>
+    </Modal>
+  );
 }
 
 // ── TABS ───────────────────────────────────────────────────────────────────
@@ -437,7 +467,7 @@ function TasksTab({tasks,onAddTask,onToggle}){
   return(<div><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:13}}><h2 style={{margin:0,fontSize:19,fontWeight:800,color:"#111827"}}>✅ Tasks</h2><button onClick={onAddTask} style={{background:"linear-gradient(135deg,#2563EB,#1D4ED8)",color:"#fff",border:"none",borderRadius:13,padding:"8px 15px",fontSize:13,fontWeight:700,cursor:"pointer",boxShadow:"0 3px 10px rgba(37,99,235,.3)"}}>+ Task</button></div><div style={{display:"flex",gap:6,marginBottom:13}}>{[{k:"pending",l:"Pending"},{k:"done",l:"Done"},{k:"all",l:"All"}].map(({k,l})=>(<button key={k} onClick={()=>setFilter(k)} style={{padding:"6px 14px",borderRadius:99,fontSize:12,fontWeight:700,border:"none",cursor:"pointer",background:filter===k?"#1D4ED8":"#E5E7EB",color:filter===k?"#fff":"#6B7280"}}>{l}</button>))}</div>{filtered.length===0&&<div style={{textAlign:"center",padding:"40px 0",color:"#9CA3AF",fontSize:13}}>No tasks here</div>}{filtered.map(t=>(<div key={t.id} className="fade" style={{background:t.completed?"#F9FAFB":"#fff",borderRadius:14,padding:13,marginBottom:9,boxShadow:t.completed?"none":"0 2px 10px rgba(0,0,0,.06)",opacity:t.completed?.6:1,border:od(t)?"1.5px solid #FECACA":"1.5px solid transparent"}}><div style={{display:"flex",gap:10,alignItems:"flex-start"}}><button onClick={()=>onToggle(t)} style={{width:24,height:24,borderRadius:7,border:`2px solid ${t.completed?"#16A34A":"#D1D5DB"}`,background:t.completed?"#16A34A":"#fff",cursor:"pointer",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:900}}>{t.completed?"✓":""}</button><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:t.completed?"#9CA3AF":"#111827",textDecoration:t.completed?"line-through":"none",marginBottom:5}}>{t.title}</div><div style={{display:"flex",gap:5,flexWrap:"wrap"}}><span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:99,background:pBg[t.priority],color:pCol[t.priority]}}>{t.priority}</span><span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:"#F3F4F6",color:"#6B7280"}}>{catI[t.category]||"📋"} {t.category}</span>{t.assignedTo&&<span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:"#F0FDF4",color:"#14532D",fontWeight:700}}>👤{t.assignedTo}</span>}{t.dueDate&&<span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:od(t)?"#FEF2F2":"#F3F4F6",color:od(t)?"#DC2626":"#6B7280",fontWeight:od(t)?700:400}}>{od(t)?"⚠ ":""}{fmtS(t.dueDate)}</span>}</div>{t.notes&&<div style={{fontSize:11,color:"#9CA3AF",marginTop:4,fontStyle:"italic"}}>{t.notes}</div>}</div></div></div>))}</div>);
 }
 function FinanceTab({financialLogs,assets,onAddIncome,onAddExpense,onAddAsset}){
-  const[view,setView]=useState("pl");
+  const[view,setView]=useState("assets");
   const now=new Date();
   const[selMonth,setSelMonth]=useState(now.getMonth());
   const[selYear,setSelYear]=useState(now.getFullYear());
@@ -483,8 +513,66 @@ function FinanceTab({financialLogs,assets,onAddIncome,onAddExpense,onAddAsset}){
     {view==="assets"&&(<div>
       <div style={{background:"linear-gradient(135deg,#1E3A5F,#2563EB)",borderRadius:15,padding:"13px 17px",marginBottom:13,display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 4px 14px rgba(37,99,235,.25)"}}><div><div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,.7)",textTransform:"uppercase",letterSpacing:.5,marginBottom:3}}>Total Asset Value</div><div style={{fontSize:26,fontWeight:900,color:"#fff",letterSpacing:-1}}>{$(totalAssets)}</div><div style={{fontSize:12,color:"rgba(255,255,255,.65)",marginTop:2}}>{(assets||[]).length} asset{(assets||[]).length!==1?"s":""} registered</div></div><div style={{fontSize:44}}>🏦</div></div>
       <button onClick={onAddAsset} style={{...BS,width:"100%",marginBottom:13,background:"linear-gradient(135deg,#2563EB,#1D4ED8)",boxShadow:"0 4px 12px rgba(37,99,235,.3)"}}>+ Add Asset</button>
-      {(assets||[]).length===0&&<div style={{textAlign:"center",padding:"44px 0",color:"#9CA3AF"}}><div style={{fontSize:44,marginBottom:11}}>🏷</div><div style={{fontSize:14,color:"#6B7280"}}>No assets registered yet</div></div>}
-      {(assets||[]).map(a=>(<div key={a.id} className="fade" style={{background:"#fff",borderRadius:15,padding:13,marginBottom:9,boxShadow:"0 2px 9px rgba(0,0,0,.06)"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}><div style={{display:"flex",gap:8,alignItems:"center"}}><span style={{fontSize:22}}>{catI[a.category]||"📦"}</span><div><div style={{fontSize:14,fontWeight:700,color:"#111827"}}>{a.name}</div><div style={{fontSize:11,color:"#9CA3AF"}}>{a.category}{a.purchaseDate?` · ${fmtS(a.purchaseDate)}`:""}</div></div></div><span style={{fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:99,background:(condCol[a.condition]||"#6B7280")+"22",color:condCol[a.condition]||"#6B7280"}}>{a.condition}</span></div><div style={{display:"flex",gap:7}}>{parseFloat(a.purchaseValue)>0&&<div style={{flex:1,background:"#F9FAFB",borderRadius:10,padding:"8px 10px"}}><div style={{fontSize:10,color:"#9CA3AF",marginBottom:2}}>Purchase Value</div><div style={{fontSize:14,fontWeight:700,color:"#374151"}}>{$(a.purchaseValue)}</div></div>}{parseFloat(a.currentValue)>0&&<div style={{flex:1,background:"#F0FDF4",borderRadius:10,padding:"8px 10px"}}><div style={{fontSize:10,color:"#9CA3AF",marginBottom:2}}>Current Value</div><div style={{fontSize:14,fontWeight:700,color:"#14532D"}}>{$(a.currentValue)}</div></div>}</div>{a.serialNumber&&<div style={{fontSize:11,color:"#9CA3AF",marginTop:6}}>S/N: {a.serialNumber}</div>}{a.notes&&<div style={{fontSize:12,color:"#6B7280",marginTop:5,fontStyle:"italic"}}>{a.notes}</div>}</div>))}
+      {(assets||[]).length===0&&<div style={{textAlign:"center",padding:"44px 0",color:"#9CA3AF"}}><div style={{fontSize:44,marginBottom:11}}>🏷</div><div style={{fontSize:14,color:"#6B7280"}}>No assets registered yet</div><div style={{fontSize:12,color:"#9CA3AF",marginTop:4}}>Tap "+ Add Asset" to register your first asset</div></div>}
+      {(assets||[]).map(a=>{
+        const serviceOverdue=a.nextService&&dBetween(a.nextService,today())>0;
+        const serviceSoon=a.nextService&&dBetween(today(),a.nextService)<=14&&dBetween(today(),a.nextService)>=0;
+        return(
+        <div key={a.id} className="fade" style={{background:"#fff",borderRadius:16,overflow:"hidden",marginBottom:11,boxShadow:"0 3px 12px rgba(0,0,0,.07)"}}>
+          {/* Header strip */}
+          <div style={{background:catI[a.category]?"linear-gradient(135deg,#1E3A5F,#2563EB)":"linear-gradient(135deg,#374151,#1F2937)",padding:"11px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:22}}>{catI[a.category]||"📦"}</span>
+              <div>
+                <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>{a.name}</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.65)"}}>{a.category}</div>
+              </div>
+            </div>
+            <span style={{fontSize:10,fontWeight:700,padding:"3px 9px",borderRadius:99,background:(condCol[a.condition]||"#6B7280")+"33",color:"#fff",border:"1px solid rgba(255,255,255,.3)"}}>{a.condition}</span>
+          </div>
+          <div style={{padding:"12px 14px"}}>
+            {/* Value row */}
+            <div style={{display:"flex",gap:7,marginBottom:10}}>
+              {parseFloat(a.purchaseValue)>0&&(
+                <div style={{flex:1,background:"#F9FAFB",borderRadius:10,padding:"8px 10px"}}>
+                  <div style={{fontSize:9,color:"#9CA3AF",marginBottom:2,textTransform:"uppercase",letterSpacing:.5}}>Purchase Cost</div>
+                  <div style={{fontSize:15,fontWeight:800,color:"#374151"}}>{$(a.purchaseValue)}</div>
+                  {a.purchaseDate&&<div style={{fontSize:10,color:"#9CA3AF",marginTop:2}}>{fmt(a.purchaseDate)}</div>}
+                </div>
+              )}
+              {parseFloat(a.currentValue)>0&&(
+                <div style={{flex:1,background:"#F0FDF4",borderRadius:10,padding:"8px 10px"}}>
+                  <div style={{fontSize:9,color:"#16A34A",marginBottom:2,textTransform:"uppercase",letterSpacing:.5}}>Current Value</div>
+                  <div style={{fontSize:15,fontWeight:800,color:"#14532D"}}>{$(a.currentValue)}</div>
+                  {parseFloat(a.purchaseValue)>0&&parseFloat(a.currentValue)>0&&(
+                    <div style={{fontSize:10,color:(a.currentValue>=a.purchaseValue)?"#16A34A":"#DC2626",marginTop:2}}>
+                      {a.currentValue>=a.purchaseValue?"+":""}{$(a.currentValue-a.purchaseValue)} change
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* Service section */}
+            {(a.lastServiced||a.nextService||a.serviceNotes)&&(
+              <div style={{background:serviceOverdue?"#FEF2F2":serviceSoon?"#FFFBEB":"#EFF6FF",borderRadius:11,padding:"9px 11px",marginBottom:8,border:`1px solid ${serviceOverdue?"#FECACA":serviceSoon?"#FCD34D":"#BFDBFE"}`}}>
+                <div style={{fontSize:10,fontWeight:700,color:serviceOverdue?"#DC2626":serviceSoon?"#D97706":"#2563EB",textTransform:"uppercase",letterSpacing:.5,marginBottom:6}}>
+                  🔧 Service {serviceOverdue?"OVERDUE":serviceSoon?"DUE SOON":"Record"}
+                </div>
+                <div style={{display:"flex",gap:12,flexWrap:"wrap",fontSize:12}}>
+                  {a.lastServiced&&<div><div style={{fontSize:9,color:"#9CA3AF"}}>Last Serviced</div><div style={{fontWeight:600,color:"#374151"}}>{fmt(a.lastServiced)}</div></div>}
+                  {a.nextService&&<div><div style={{fontSize:9,color:"#9CA3AF"}}>Next Service</div><div style={{fontWeight:700,color:serviceOverdue?"#DC2626":serviceSoon?"#D97706":"#2563EB"}}>{fmt(a.nextService)}</div></div>}
+                </div>
+                {a.serviceNotes&&<div style={{fontSize:11,color:"#6B7280",marginTop:5,fontStyle:"italic"}}>{a.serviceNotes}</div>}
+              </div>
+            )}
+            {/* Meta row */}
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {a.serialNumber&&<span style={{fontSize:10,color:"#6B7280",background:"#F3F4F6",borderRadius:99,padding:"2px 9px"}}>S/N: {a.serialNumber}</span>}
+              {a.notes&&<span style={{fontSize:10,color:"#6B7280",background:"#F3F4F6",borderRadius:99,padding:"2px 9px",fontStyle:"italic"}}>{a.notes}</span>}
+            </div>
+          </div>
+        </div>
+      );})}
     </div>)}
   </div>);
 }
@@ -562,7 +650,7 @@ function App(){
   const addTask=async f=>{const payload={id:uid(),title:f.title,due_date:f.dueDate||null,priority:f.priority||"Medium",category:f.category||"General",assigned_to:f.assignedTo||null,notes:f.notes||null,completed:false,completed_date:null};const{error}=await sb.from("tasks").insert(payload);if(error){showToast("Failed: "+error.message,"error");return;}setShowAddTask(false);showToast("Task added ✓");fetchAll(true);};
   const toggleTask=async t=>{const{error}=await sb.from("tasks").update({completed:!t.completed,completed_date:!t.completed?today():null}).eq("id",t.id);if(error){showToast("Failed","error");return;}fetchAll(true);};
   const addFinance=async f=>{const payload={id:uid(),date:f.date,type:f.type,category:f.category,description:f.description||null,amount:parseFloat(f.amount),logged_by:f.logged_by||null};const{error}=await sb.from("financial_logs").insert(payload);if(error){showToast("Failed: "+error.message,"error");return;}setShowAddFinance(null);showToast((f.type==="income"?"Income":"Expense")+" logged ✓");fetchAll(true);};
-  const addAsset=async f=>{const payload={id:uid(),name:f.name,category:f.category,purchase_value:parseFloat(f.purchase_value)||0,current_value:parseFloat(f.current_value)||0,purchase_date:f.purchase_date||null,condition:f.condition||"Good",serial_number:f.serial_number||null,notes:f.notes||null};const{error}=await sb.from("assets").insert(payload);if(error){showToast("Failed: "+error.message,"error");return;}setShowAddAsset(false);showToast("Asset saved ✓");fetchAll(true);};
+  const addAsset=async f=>{const payload={id:uid(),name:f.name,category:f.category,purchase_value:parseFloat(f.purchase_value)||0,current_value:parseFloat(f.current_value)||0,purchase_date:f.purchase_date||null,condition:f.condition||"Good",serial_number:f.serial_number||null,last_serviced:f.last_serviced||null,next_service:f.next_service||null,service_notes:f.service_notes||null,notes:f.notes||null};const{error}=await sb.from("assets").insert(payload);if(error){showToast("Failed: "+error.message,"error");return;}setShowAddAsset(false);showToast("Asset saved ✓");fetchAll(true);};
 
   const fmtSync=()=>{if(!lastSync)return"";const m=Math.round((new Date()-lastSync)/60000);return m<1?"Just synced":m+"m ago";};
   const pendingTasks=(tasks||[]).filter(t=>!t.completed).length;
